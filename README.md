@@ -105,7 +105,8 @@ getting pinged.
 - **It does not push without asking.** `/plate` shows the exact branch, commits and PR body and
   waits for a yes.
 - **It does not let a chef start writing on its own.** Every station starts in plan mode and has
-  to get its plan approved in its own tab first.
+  to get its plan approved in its own tab first. That plan is a list of atomic phases, and the
+  chef implements one commit per phase, so the branch reads back as the plan you approved.
 - **It does not touch your repository.** Tickets and review reports live in `~/.sous-chef/`,
   worktrees live in `~/.herdr/worktrees/`. No project ever needs a `.gitignore` entry for it.
 

@@ -37,7 +37,7 @@ station
 ├── herdr workspace   labelled <slug>, its own tab in the sidebar
 ├── chef-de-partie    a real `claude` process in that workspace's root pane
 ├── branch            sous-chef/<slug>
-└── station directory ~/.sous-chef/<repo>-<hash>/<slug>/  (ticket.md, review-N.md)
+└── station directory ~/.sous-chef/<repo>-<hash>/<slug>/  (ticket.md, plan.md, review-N.md)
 ```
 
 The chef-de-partie is an **interactive session, not a subagent**. That is the requirement the
@@ -54,9 +54,14 @@ There is no station registry. `/brigade` derives everything from
 path. A stored index would eventually disagree with reality about which stations exist, and a
 status report that lies is worse than no status report.
 
-What *is* stored is durable intent only: the ticket you wrote when firing, and the review reports.
-Those cannot be recomputed, so they live on disk under `~/.sous-chef/<repo>-<hash>/<slug>/`.
-Keying by a hash of the repository path means two checkouts of the same project never collide.
+What *is* stored is durable intent only: the ticket you wrote when firing, the phase plan the
+user approved, and the review reports. Those cannot be recomputed, so they live on disk under
+`~/.sous-chef/<repo>-<hash>/<slug>/`. Keying by a hash of the repository path means two checkouts
+of the same project never collide.
+
+`plan.md` is intent, not state, which is why it does not break the invariant. It records the
+phases the user agreed to, and it is never updated to say how far along the station is. Progress
+is read from `git log`, where one commit per phase makes it unambiguous.
 
 Nothing is ever written inside the user's repository.
 
@@ -69,6 +74,23 @@ The user must always be able to fire another ticket. So:
   `herdr agent prompt sous-chef` ping per event.
 - The orchestrator renames its own pane to `sous-chef` at startup, which is what makes that
   reverse channel addressable by name.
+
+## Why plans are phased
+
+A station's plan is a sequence of atomic phases, and each approved phase becomes exactly one
+commit. The rule lives in the `chef-de-partie` contract, and it exists to serve the two verbs
+downstream of it.
+
+`/pass` reviews a branch, and a branch whose history is one large commit gives a reviewer no
+seams to reason about: every change arrives at once, with no statement of which change was meant
+to do what. Phases give the reviewer the author's own decomposition to check the diff against,
+which is why the reviewer brief reads `plan.md` and treats a mismatch as a finding.
+
+`/plate` then gets a pull request body it does not have to invent. The phases already describe the
+change at the level of behaviour, in order, and they map one to one onto the commit list.
+
+The cost is paid entirely at plan time, in a tab where the user is already reading the plan, and
+it is the cheapest possible moment to notice that a change is really three changes.
 
 ## The naming convention is the API
 
