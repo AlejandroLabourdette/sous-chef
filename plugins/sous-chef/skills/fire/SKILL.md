@@ -35,8 +35,8 @@ Write `$KITCHEN/$SLUG/ticket.md` before creating anything, so the brief exists e
 step fails.
 
 Do a little homework first: name the files and existing patterns the chef should start from.
-Do **not** pre-solve the task. Designing the change is the chef's job, and it does that in plan
-mode with the user watching.
+Do **not** pre-solve the task, and do not carve it into phases. Designing the change and cutting
+it into phases are both the chef's job, and it does them in plan mode with the user watching.
 
 ```markdown
 # Ticket: <slug>
@@ -60,7 +60,8 @@ mode with the user watching.
 - Station directory: `<kitchen>/<slug>/`
 
 ## Protocol
-Invoke the `chef-de-partie` skill and follow it for the whole life of this station.
+Invoke the `chef-de-partie` skill and follow it for the whole life of this station. Plan in
+atomic phases and implement one commit per phase.
 ```
 
 Fill the worktree path in after step 3, or write the ticket in two passes. The path is

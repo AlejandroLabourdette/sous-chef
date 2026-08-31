@@ -88,6 +88,7 @@ reality. Live state always comes from herdr and git.
 Only durable intent lives on disk, under `$KITCHEN/<slug>/`:
 
 - `ticket.md` - the brief you wrote when firing
+- `plan.md` - the phased plan the chef wrote once the user approved it
 - `review-N.md` - review reports, numbered from 1
 
 Nothing is ever written inside the user's repository, so no project needs a `.gitignore` entry
@@ -110,7 +111,9 @@ skill rather than improvising the procedure.
 ## The service, end to end
 
 1. User describes a task. You `/fire` it. Focus stays on you.
-2. The station plans in its own tab. The user approves the plan there and the chef implements.
+2. The station plans in its own tab, as a list of atomic phases. The user approves it there, the
+   chef writes the plan to `$KITCHEN/<slug>/plan.md`, and implements the phases in order, one
+   commit each, without stopping between them.
 3. The station pings you when it believes it is done, or when it is stuck. **Relay that to the
    user. Do not act on it.** A chef calling itself finished is a report, not a verdict.
 4. The user looks at the work and tells you they are satisfied. Only then do you `/pass` it: a

@@ -56,7 +56,8 @@ gh pr create --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)" \
 Build the body from what you already have, and keep it short:
 
 - What the ticket asked for, in a sentence or two, from `ticket.md`.
-- What actually changed, at the level of behaviour rather than a file list.
+- What actually changed, at the level of behaviour rather than a file list. Build this from the
+  phases in `plan.md`: they map one to one onto the commits you just listed.
 - Anything the reviews raised that was consciously left undone, and why. This is the part
   reviewers most need and most rarely get.
 

@@ -56,6 +56,11 @@ Then spawn a background subagent. Give it this shape of brief:
 > If earlier reports exist at `<KITCHEN>/<slug>/review-*.md`, read them too and do not repeat
 > findings the user already declined.
 >
+> If `<KITCHEN>/<slug>/plan.md` exists, read it as well. It is the phase plan the user approved,
+> and the branch is meant to be that plan with one commit per phase. A commit that bundles two
+> phases, a phase that never landed, or a change that is in the diff but nowhere in the plan is a
+> finding in its own right.
+>
 > Use the `code-review` skill against this branch target for the analysis.
 >
 > Write your findings to `<KITCHEN>/<slug>/review-<N>.md`. Order them most severe first, and for
