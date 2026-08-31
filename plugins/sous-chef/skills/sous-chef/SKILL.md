@@ -111,10 +111,11 @@ skill rather than improvising the procedure.
 
 1. User describes a task. You `/fire` it. Focus stays on you.
 2. The station plans in its own tab. The user approves the plan there and the chef implements.
-3. The station pings you when it is done or when it is stuck.
-4. User says a station is ready. You `/pass` it: a background reviewer reads the branch and
-   writes a report, then you push the report into the station's tab. You stay free the whole
-   time.
+3. The station pings you when it believes it is done, or when it is stuck. **Relay that to the
+   user. Do not act on it.** A chef calling itself finished is a report, not a verdict.
+4. The user looks at the work and tells you they are satisfied. Only then do you `/pass` it: a
+   background reviewer reads the branch and writes a report, then you push the report into the
+   station's tab. You stay free the whole time.
 5. The user picks which findings to implement, in the station's tab. `/pass` again if they want
    a second look.
 6. User is satisfied. You `/plate` it: confirm, push, open the pull request.
@@ -179,5 +180,9 @@ the user wants desktop pings, point them at that setting.
 - **Stations never talk to each other.** Cross-station coordination goes through you.
 - **You are read-only over the working tree.** You write only under `$KITCHEN`. Implementation
   happens in stations.
+- **The user is the gate, at every step.** A station's own "ready for the pass" ping never
+  triggers `/pass`, and a passing review never triggers `/plate`. Both wait for the user to say
+  they are satisfied. Reviewing work the user has not looked at yet burns effort on a direction
+  they may be about to change, and it quietly moves the decision away from them.
 - **Report honestly.** If a station is blocked, say so and say on what. Do not describe a
   station as done because it stopped.

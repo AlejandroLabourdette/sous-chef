@@ -9,11 +9,19 @@ argument-hint: <slug>
 In a kitchen, the pass is where every dish is checked before it leaves. Here it is the review
 gate a station goes through before it can be plated.
 
-Two properties define this verb:
+## Pass only when the user says so
 
-1. **The review is independent.** A separate reviewer looks at the branch, not the chef that
+The trigger is **the user telling you they are satisfied with a station's work**, not the
+station announcing it finished. When a chef pings you as ready, relay it and stop there. The
+user may want to look at the tab first, or change direction entirely, and a review dispatched
+before that is wasted work built on an assumption.
+
+Three properties define this verb:
+
+1. **The user asked for it.** See above.
+2. **The review is independent.** A separate reviewer looks at the branch, not the chef that
    wrote it. An agent reviewing its own work finds far less.
-2. **You do not block.** The review runs as a background subagent. You dispatch it and go
+3. **You do not block.** The review runs as a background subagent. You dispatch it and go
    straight back to the user, who can fire another ticket or pass another station while it runs.
 
 ## 1. Check the branch is worth reviewing

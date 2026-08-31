@@ -54,7 +54,8 @@ herdr agent prompt sous-chef "<slug>: <one line status>"
 Send them when, and only when:
 
 - **You are ready for the pass.** The ticket is implemented, tests pass, the tree is clean and
-  committed. Say so in one line.
+  committed. Say so in one line. This is a report, not a request: the user decides whether the
+  work goes to review, and they may want to look at it here first.
 - **You are stuck on a decision** the user has to make and it has been raised in this tab.
 - **You cannot do the ticket** as written, and why.
 
