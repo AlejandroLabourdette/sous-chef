@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "sous-chef",
+  "description": "Kitchen-brigade orchestration for Claude Code: run several tasks in parallel, one isolated station per task.",
+  "owner": {
+    "name": "Alejandro Labourdette",
+    "email": "gocashdeveloper@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "sous-chef",
+      "source": "./plugins/sous-chef",
+      "description": "Talk to one agent, cook with a brigade. sous-chef opens a git worktree plus its own live Claude Code session per task, keeps them running in parallel under herdr, reviews each branch in the background, and ships it as a pull request."
+    }
+  ]
+}
