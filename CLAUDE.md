@@ -33,3 +33,20 @@ Two invariants that carry most of the design:
 tell you whether the instructions work. Behaviour changes need a real run: a throwaway repo, a
 sous-chef session inside herdr, and an actual `/fire` through `/plate`. `docs/architecture.md`
 records the herdr response shapes and failure modes already confirmed that way.
+
+## Getting a change into a running session
+
+Installed plugins are **copied into `~/.claude/plugins/cache/` at install time**, pinned to the
+commit that was current then. Editing this repository changes nothing for anyone who has it
+installed, and `claude plugin update` compares **versions, not commits**, so it reports "already
+at the latest version" and does nothing.
+
+So every change you want to actually run needs three things:
+
+1. a version bump in `plugins/sous-chef/.claude-plugin/plugin.json`
+2. `claude plugin marketplace update sous-chef && claude plugin update sous-chef@sous-chef`
+3. a session restart, in the orchestrator **and** in any station, since each station is its own
+   `claude` process that loaded the skills at startup
+
+Forgetting the bump is the quiet failure mode: everything reports success and the old skills keep
+running.
