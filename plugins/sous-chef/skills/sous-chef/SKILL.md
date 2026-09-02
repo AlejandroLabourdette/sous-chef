@@ -107,6 +107,16 @@ Do **not** match on `label`. Every row of `herdr worktree list --cwd "$REPO"` re
 the *repository* label, not the per-station `--label` that created it, so a lookup by label
 silently matches every station at once.
 
+`/brigade` identifies a station differently, and deliberately: it *enumerates*, so it has to
+decide which of N worktrees are stations at all, and it does that by joining them against the
+station directories under `$KITCHEN`. This resolver *looks up* one slug the caller already knows
+belongs to a station, so the join would buy it nothing.
+
+Neither predicate is the stricter one. Both key on the slug, so both surface the same ambiguity
+when two branches end in `/<slug>` - `/brigade` simply renders the slug twice instead of
+concatenating two branch names. That is why the check above counts rows rather than reaching for a
+cleverer predicate: unifying the two would not fix it.
+
 ## Naming convention replaces a state registry
 
 One slug drives every identifier. Do not keep a JSON index of stations: it would drift from
