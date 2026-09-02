@@ -28,7 +28,8 @@ Three properties define this verb:
 ## 1. Check the branch is worth reviewing
 
 Resolve the station first, as described in the `sous-chef` skill, so `$BRANCH` and `$WT` come
-from herdr rather than from the slug.
+from herdr rather than from the slug. Keep `$WS` from that same lookup: step 3 relays the
+workspace to switch to, and this is where that id comes from.
 
 ```bash
 git -C "$WT" status --porcelain                   # must be empty
