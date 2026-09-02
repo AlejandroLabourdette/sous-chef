@@ -76,8 +76,10 @@ focus anything unasked.
 
 ## Edge cases worth reporting instead of hiding
 
-- An archived station directory with no worktree: the station was torn down but its branch may
-  have survived, which is normal after `/86`. Mention it as a leftover branch, not as a station.
+- Two rows with the same slug: two worktrees have branches ending in `/<slug>`, usually a station
+  next to a branch of the user's own. Report both branches and say which one is the station - it
+  is the worktree whose `path` matches that agent's `cwd`. Never pick one silently; `/plate` and
+  `/86` cannot act on an ambiguous slug at all.
 - A worktree with `no session`: the chef exited or the pane was closed. Offer to restart a chef
   in it, or to `/86` it.
 - A dirty tree on a station the user believes is finished: say so before any talk of `/pass` or
