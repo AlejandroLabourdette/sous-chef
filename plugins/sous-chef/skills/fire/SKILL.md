@@ -19,12 +19,19 @@ The slug must match `^[a-z][a-z0-9_-]{0,31}$`. This is herdr's agent-name rule, 
 preference: a slug outside it cannot be used as an agent name. If it does not match, propose a
 corrected slug and ask before continuing.
 
+Then pick the branch type from the task, using the table in the `sous-chef` skill. `$TYPE` and
+`$SLUG` together are the branch.
+
 Refuse to fire if the station already exists:
 
 ```bash
-git -C "$REPO" rev-parse --verify --quiet "refs/heads/sous-chef/$SLUG" && echo "branch exists"
+git -C "$REPO" for-each-ref --format='%(refname:short)' "refs/heads/$SLUG" "refs/heads/*/$SLUG"
 herdr agent get "$SLUG" >/dev/null 2>&1 && echo "agent name taken"
 ```
+
+The branch check looks for the slug under **any** prefix, not just the one you are about to use.
+A slug identifies a station, so `fix/auth` blocks `feat/auth`: they would collide on the agent
+name and the station directory regardless of type.
 
 If either hits, the station is already open. Offer to focus it or to pick another slug. Never
 reuse a slug for a different task.
@@ -54,7 +61,7 @@ it into phases are both the chef's job, and it does them in plan mode with the u
 - <what this station must not touch, especially work owned by other stations>
 
 ## Station
-- Branch: `sous-chef/<slug>`
+- Branch: `<type>/<slug>`
 - Base: `<base>`
 - Worktree: `<path>`
 - Station directory: `<kitchen>/<slug>/`
@@ -64,14 +71,18 @@ Invoke the `chef-de-partie` skill and follow it for the whole life of this stati
 atomic phases and implement one commit per phase.
 ```
 
-Fill the worktree path in after step 3, or write the ticket in two passes. The path is
-predictable (`~/.herdr/worktrees/<repo-name>/sous-chef-<slug>`) but read it from the response
-rather than assuming.
+Fill the worktree path in after step 3, or write the ticket in two passes. herdr names the
+directory after the branch, with `/` replaced by `-`
+(`~/.herdr/worktrees/<repo-name>/<type>-<slug>`), but read it from the response rather than
+assuming.
+
+State the branch in the ticket. It is how the chef learns its own branch without reconstructing
+it.
 
 ## 3. Create the worktree
 
 ```bash
-OUT="$(herdr worktree create --cwd "$REPO" --branch "sous-chef/$SLUG" --base "$BASE" --label "$SLUG" --no-focus)"
+OUT="$(herdr worktree create --cwd "$REPO" --branch "$TYPE/$SLUG" --base "$BASE" --label "$SLUG" --no-focus)"
 PANE="$(printf '%s' "$OUT" | jq -r .result.root_pane.pane_id)"
 WS="$(printf '%s' "$OUT" | jq -r .result.workspace.workspace_id)"
 WT="$(printf '%s' "$OUT" | jq -r .result.worktree.path)"
@@ -127,6 +138,10 @@ Do not pass `--wait`. The chef will be working for a while and you must stay ava
 Tell the user, in a couple of lines: the slug, the branch, the workspace id to switch to, and
 that the station is planning and will need their approval in its own tab. Then stop. Do not
 poll the station.
+
+Name the type you inferred. You chose it on their behalf, so the report is the only place they
+see the decision, and if it is wrong the fix is cheap: `/86` and fire again, before the chef has
+built anything.
 
 ```bash
 herdr notification show "$SLUG" --body "station open, planning" --sound done

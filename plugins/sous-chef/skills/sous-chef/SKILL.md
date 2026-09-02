@@ -11,7 +11,7 @@ The user gives you a task. You open a **station** for it and go back to being av
 A station is one unit of isolation:
 
 ```
-station = git worktree + herdr workspace + a live Claude Code session (the chef-de-partie) + branch sous-chef/<slug>
+station = git worktree + herdr workspace + a live Claude Code session (the chef-de-partie) + branch <type>/<slug>
 ```
 
 The chef-de-partie is a real interactive session, not a subagent. The user can switch to its
@@ -103,10 +103,10 @@ reality. Live state always comes from herdr and git.
 | Thing | Value |
 | --- | --- |
 | slug | matches `^[a-z][a-z0-9_-]{0,31}$` (herdr's agent-name rule) |
-| branch | `sous-chef/<slug>` |
+| branch | `<type>/<slug>`, see below |
 | herdr agent name | `<slug>` |
 | herdr workspace label | `<slug>` |
-| worktree path | `~/.herdr/worktrees/<repo-name>/sous-chef-<slug>` (herdr picks it) |
+| worktree path | `~/.herdr/worktrees/<repo-name>/<type>-<slug>` (herdr picks it, from the branch) |
 | station directory | `$KITCHEN/<slug>/` |
 
 Only durable intent lives on disk, under `$KITCHEN/<slug>/`:
@@ -117,6 +117,44 @@ Only durable intent lives on disk, under `$KITCHEN/<slug>/`:
 
 Nothing is ever written inside the user's repository, so no project needs a `.gitignore` entry
 for sous-chef.
+
+### Choosing the type
+
+The branch prefix says what kind of work the station is doing, the way any well-named git branch
+does. It is not the tool's name, and it is not decoration: it is the first thing anyone reading
+`git branch` learns about the change.
+
+**You infer it. The user never types it.** Read the task, pick the type, and say which one you
+picked when you report the station open. The allowed set is Conventional Commits, in full:
+
+| Type | The station's work is |
+| --- | --- |
+| `feat` | a capability the codebase did not have |
+| `fix` | a defect in behaviour that is already meant to work |
+| `refactor` | a change in structure that a user could not observe |
+| `perf` | the same behaviour, faster or lighter |
+| `test` | tests only |
+| `docs` | documentation only |
+| `style` | formatting and whitespace, no behaviour at all |
+| `build` | the build, packaging or dependencies |
+| `ci` | pipelines and automation around the repository |
+| `chore` | housekeeping that fits nowhere above, including releases |
+| `revert` | undoing a change that already landed |
+
+Two rules keep this from drifting:
+
+- **Infer from what the change does to the codebase, not from the words in the request.** "Clean
+  up the login flow" is `refactor` if behaviour is preserved and `fix` if it is not. Ask what the
+  diff will look like, not how the sentence was phrased.
+- **When two types fit, take the one a reader would care about.** Work that adds a capability and
+  moves some code is `feat`; `chore` is the last resort, never the shortcut.
+
+The slug rule already forbids a `/`, so a user who types `feat/dark-mode` gets the usual
+corrected-slug prompt for `dark-mode`, and you infer the type as normal.
+
+Commit messages keep a narrower set - `feat`, `fix`, `refactor`, `test`, `docs`, `chore` - because
+that is what the `chef-de-partie` contract mandates. A branch names one task, so it can afford
+`perf` or `ci`; that asymmetry is deliberate, not an oversight to reconcile.
 
 ## The five verbs
 
@@ -199,7 +237,7 @@ never predict identifiers.
 
 ```bash
 # create a worktree and its workspace, without stealing focus
-herdr worktree create --cwd "$REPO" --branch "sous-chef/<slug>" --base "$BASE" --label "<slug>" --no-focus
+herdr worktree create --cwd "$REPO" --branch "<type>/<slug>" --base "$BASE" --label "<slug>" --no-focus
 #   -> .result.root_pane.pane_id      the shell pane to start the chef in
 #   -> .result.workspace.workspace_id the workspace to focus or remove later
 #   -> .result.worktree.path          the checkout path

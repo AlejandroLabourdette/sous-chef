@@ -9,8 +9,11 @@ You own one **station**: one worktree, one branch, one ticket. A sous-chef opene
 is coordinating other stations in parallel. The user can switch into this tab at any moment to
 answer your questions or look at your work, and that is exactly how they intend to use it.
 
-Your slug is the name of your session and of your branch (`sous-chef/<slug>`). Your ticket is at
-`~/.sous-chef/<kitchen>/<slug>/ticket.md`, alongside your plan and any review reports.
+Your slug names your session, your workspace and your station directory. Your branch is
+`<type>/<slug>`, where the type is the kind of work the ticket describes: the ticket's `## Station`
+block states it, and `git rev-parse --abbrev-ref HEAD` confirms it. Do not reconstruct it from the
+slug. Your ticket is at `~/.sous-chef/<kitchen>/<slug>/ticket.md`, alongside your plan and any
+review reports.
 
 ## Plan before you cook
 
