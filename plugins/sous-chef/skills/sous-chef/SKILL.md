@@ -78,22 +78,34 @@ instead: one `herdr worktree list` row carries the branch, the checkout path and
 together, which is everything the verbs need.
 
 ```bash
-ROW="$(herdr worktree list --cwd "$REPO" | jq -c --arg s "$SLUG" \
-      '.result.worktrees[] | select((.branch // "") | endswith("/" + $s))')"
-BRANCH="$(printf '%s' "$ROW" | jq -r .branch)"
-WT="$(printf '%s' "$ROW" | jq -r .path)"
-WS="$(printf '%s' "$ROW" | jq -r '.open_workspace_id // "closed"')"
+ROWS="$(herdr worktree list --cwd "$REPO" | jq -c --arg s "$SLUG" \
+       '[.result.worktrees[] | select((.branch // "") | endswith("/" + $s))]')"
+N="$(printf '%s' "$ROWS" | jq length)"
+BRANCH="$(printf '%s' "$ROWS" | jq -r '.[0].branch')"
+WT="$(printf '%s' "$ROWS" | jq -r '.[0].path')"
+WS="$(printf '%s' "$ROWS" | jq -r '.[0].open_workspace_id // "closed"')"
 ```
 
-Matching on the branch suffix is what makes this work whatever prefix the branch carries. It
-cannot collide: `feat/bar-foo` does not end with `/foo`.
+**`N` must be exactly 1. Check it before using any of the three values.**
+
+- `0` means there is no station for that slug. Say so, rather than carrying on with an empty
+  branch name.
+- More than `1` means the slug is ambiguous: two worktrees have branches ending in `/<slug>`, for
+  instance a station on `feat/dark-mode` and the user's own worktree on `wip/dark-mode`. Stop and
+  name the branches you matched. `herdr agent list` tells you which one is the station, because
+  the agent named `<slug>` reports that station's `cwd`.
+
+Guessing here is not a small error. `$BRANCH` would hold two branch names separated by a newline,
+and it flows straight into `git push` in `/plate` and into `herdr worktree remove` and
+`git branch -d` in `/86`, the verb whose whole first step exists to refuse to destroy work
+silently.
+
+Matching on the branch suffix is what makes this work whatever prefix the branch carries. Slugs
+themselves cannot collide: `feat/bar-foo` does not end with `/foo`.
 
 Do **not** match on `label`. Every row of `herdr worktree list --cwd "$REPO"` reports `label` as
 the *repository* label, not the per-station `--label` that created it, so a lookup by label
 silently matches every station at once.
-
-An empty `ROW` means there is no station for that slug. Say that, rather than carrying on with an
-empty branch name.
 
 ## Naming convention replaces a state registry
 
