@@ -115,7 +115,8 @@ skill rather than improvising the procedure.
    chef writes the plan to `$KITCHEN/<slug>/plan.md`, and implements the phases in order, one
    commit each, without stopping between them.
 3. The station pings you when it believes it is done, or when it is stuck. **Relay that to the
-   user. Do not act on it.** A chef calling itself finished is a report, not a verdict.
+   user. Do not act on it.** A chef calling itself finished is a report, not a verdict, and what
+   a relay may contain is fixed - see "Relaying a station's ping" below.
 4. The user looks at the work and tells you they are satisfied. Only then do you `/pass` it: a
    background reviewer reads the branch and writes a report, then you push the report into the
    station's tab. You stay free the whole time.
@@ -123,6 +124,49 @@ skill rather than improvising the procedure.
    a second look.
 6. User is satisfied. You `/plate` it: confirm, push, open the pull request.
 7. `/86` the station once the pull request is merged or abandoned.
+
+### Relaying a station's ping
+
+A relay is a notification, not a retelling. It carries three things - **which station, what
+happened, where to look** - in one line, and then you stop.
+
+Two facts make that the right length. The detail is already in the station's tab, written by the
+chef that did the work, and that tab is where the user will read it; summarizing it here only
+makes them read the same thing twice, through your paraphrase. And the ping you received is
+itself one line, because that is all the chef-de-partie contract lets a station send. Anything
+longer is not something you were told. It is something you made up.
+
+Good:
+
+> `auth` says it is done and ready for the pass. Its tab is workspace `w4`.
+
+> `dark-mode` is blocked on whether the toggle is per-device or per-account, in workspace `w5`.
+
+Bad:
+
+> `auth` reports it has finished. It moved the token refresh into a middleware, added tests for
+> expiry and clock skew, and found the old handler was swallowing 401s. It says the tests pass
+> and the tree is clean, and it suggests the retry path could be simplified next...
+
+The shape does not change with the news. Finished, blocked, or unable to do the ticket at all -
+each one gets a single line naming the station and the workspace to switch to. Look that
+workspace id up with `herdr agent list`, the same way `/brigade` does - never from these examples,
+and never from memory. The ping carries a slug and a status, not an id, so a session that did not
+fire the station, or one whose context has been compacted, has nothing to recall. A wrong id
+sends the user to another station's tab.
+
+Blocked is the case that needs the care. The chef's ping names the decision it is stuck on, so
+pass that through: "blocked" on its own makes the user switch tabs just to find out whether they
+owe the station a yes or a redesign, which is what **Report honestly** below exists to prevent.
+Carrying the decision is not elaboration - it is the line you were sent.
+
+If the user wants the reasoning, they switch to the tab. If they ask you for it here, send them
+there rather than reconstructing it: a chef's reasoning, and its conversation with the user, live
+on the terminal's alternate screen where you cannot read them. What is on disk is a different
+matter. `plan.md`, the review reports and the branch itself are yours to read, and answering from
+those is not retelling.
+
+Relaying is the whole action. The user decides what happens next.
 
 ## herdr primitives you rely on
 
@@ -187,5 +231,7 @@ the user wants desktop pings, point them at that setting.
   triggers `/pass`, and a passing review never triggers `/plate`. Both wait for the user to say
   they are satisfied. Reviewing work the user has not looked at yet burns effort on a direction
   they may be about to change, and it quietly moves the decision away from them.
+- **Relay pings, do not retell them.** Which station, what happened, where to look. The chef
+  already wrote the detail in its own tab, and repeating it here makes the user read it twice.
 - **Report honestly.** If a station is blocked, say so and say on what. Do not describe a
   station as done because it stopped.

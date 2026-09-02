@@ -12,9 +12,10 @@ gate a station goes through before it can be plated.
 ## Pass only when the user says so
 
 The trigger is **the user telling you they are satisfied with a station's work**, not the
-station announcing it finished. When a chef pings you as ready, relay it and stop there. The
-user may want to look at the tab first, or change direction entirely, and a review dispatched
-before that is wasted work built on an assumption.
+station announcing it finished. When a chef pings you as ready, relay it in the shape that
+"Relaying a station's ping" fixes in the `sous-chef` skill, and stop there. The user may want to
+look at the tab first, or change direction entirely, and a review dispatched before that is
+wasted work built on an assumption.
 
 Three properties define this verb:
 
@@ -69,8 +70,8 @@ Then spawn a background subagent. Give it this shape of brief:
 > confident about as uncertain rather than dropping it or overstating it. If the branch is clean,
 > say that plainly in the file instead of manufacturing findings.
 >
-> Return a three line summary: how many correctness findings, how many quality findings, and the
-> single most important one.
+> Return two numbers and nothing else: how many correctness findings, and how many quality
+> findings. The report carries the detail, and the orchestrator relays only the counts.
 
 Reuse the existing `code-review` skill rather than inventing a reviewer. It already handles
 severity, verification and false-positive filtering.
@@ -86,8 +87,13 @@ herdr agent prompt "$SLUG" "Review $N is at $KITCHEN/$SLUG/review-$N.md. Read it
 herdr notification show "$SLUG" --body "review $N ready" --sound done
 ```
 
-Then tell the user, in one or two lines: the headline of the review and which station's tab it
-landed in. The triage itself happens there, with the chef that knows the code.
+Then tell the user one line: the two counts, which review landed, and the workspace to switch to.
+The counts are the one thing a relay may carry beyond the news itself, because a count is not a
+finding - it tells the user whether there is anything to triage without deciding any of it for
+them, and a clean review has to be able to say so without costing a tab switch.
+
+Nothing past the counts. The chef is about to summarize that same report in its own tab, with the
+code in front of it, and that is where the user picks what gets implemented.
 
 ## 4. Repeat as needed
 

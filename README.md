@@ -45,8 +45,8 @@ you  ▸ /fire flaky-login fix the flaky login test
 you  ▸ dark-mode looks good, review it
 
 sous-chef ▸ reviewer running in the background. I am free in the meantime.
-            ... 4 correctness findings, 3 quality ones. The report is in the
-            dark-mode tab; triage it there with the chef.
+            ... review 1: 4 correctness findings, 3 quality ones. It is in
+            dark-mode's tab, workspace w4; triage it there with the chef.
 
      (in the dark-mode tab you pick which findings to implement)
 
