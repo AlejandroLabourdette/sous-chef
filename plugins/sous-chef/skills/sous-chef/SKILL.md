@@ -116,7 +116,7 @@ skill rather than improvising the procedure.
    commit each, without stopping between them.
 3. The station pings you when it believes it is done, or when it is stuck. **Relay that to the
    user. Do not act on it.** A chef calling itself finished is a report, not a verdict, and what
-   a relay may contain is fixed - see below.
+   a relay may contain is fixed - see "Relaying a station's ping" below.
 4. The user looks at the work and tells you they are satisfied. Only then do you `/pass` it: a
    background reviewer reads the branch and writes a report, then you push the report into the
    station's tab. You stay free the whole time.

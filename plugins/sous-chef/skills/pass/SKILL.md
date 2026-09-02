@@ -12,9 +12,10 @@ gate a station goes through before it can be plated.
 ## Pass only when the user says so
 
 The trigger is **the user telling you they are satisfied with a station's work**, not the
-station announcing it finished. When a chef pings you as ready, relay it in the one line the
-`sous-chef` skill describes and stop there. The user may want to look at the tab first, or change
-direction entirely, and a review dispatched before that is wasted work built on an assumption.
+station announcing it finished. When a chef pings you as ready, relay it in the shape that
+"Relaying a station's ping" fixes in the `sous-chef` skill, and stop there. The user may want to
+look at the tab first, or change direction entirely, and a review dispatched before that is
+wasted work built on an assumption.
 
 Three properties define this verb:
 
