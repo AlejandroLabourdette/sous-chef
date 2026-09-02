@@ -149,7 +149,11 @@ Bad:
 > and the tree is clean, and it suggests the retry path could be simplified next...
 
 The shape does not change with the news. Finished, blocked, or unable to do the ticket at all -
-each one gets a single line naming the station and the workspace to switch to.
+each one gets a single line naming the station and the workspace to switch to. Look that
+workspace id up with `herdr agent list`, the same way `/brigade` does - never from these examples,
+and never from memory. The ping carries a slug and a status, not an id, so a session that did not
+fire the station, or one whose context has been compacted, has nothing to recall. A wrong id
+sends the user to another station's tab.
 
 Blocked is the case that needs the care. The chef's ping names the decision it is stuck on, so
 pass that through: "blocked" on its own makes the user switch tabs just to find out whether they
