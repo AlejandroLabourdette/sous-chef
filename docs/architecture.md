@@ -33,10 +33,10 @@ break on upgrade, or lie about the state of the world.
 
 ```
 station
-├── git worktree      ~/.herdr/worktrees/<repo>/sous-chef-<slug>   (created by herdr)
+├── git worktree      ~/.herdr/worktrees/<repo>/<type>-<slug>      (created by herdr)
 ├── herdr workspace   labelled <slug>, its own tab in the sidebar
 ├── chef-de-partie    a real `claude` process in that workspace's root pane
-├── branch            sous-chef/<slug>
+├── branch            <type>/<slug>
 └── station directory ~/.sous-chef/<repo>-<hash>/<slug>/  (ticket.md, plan.md, review-N.md)
 ```
 
@@ -99,20 +99,31 @@ One slug drives every identifier, which is what makes state composable without a
 | Thing | Value |
 | --- | --- |
 | slug | `^[a-z][a-z0-9_-]{0,31}$`, herdr's agent-name rule |
-| branch | `sous-chef/<slug>` |
+| branch | `<type>/<slug>`, type inferred from the ticket |
 | herdr agent name | `<slug>` |
 | herdr workspace label | `<slug>` |
-| worktree path | `~/.herdr/worktrees/<repo>/sous-chef-<slug>` |
+| worktree path | `~/.herdr/worktrees/<repo>/<type>-<slug>` |
 | station directory | `~/.sous-chef/<repo>-<hash>/<slug>/` |
+
+The branch is the one row that is *not* derived from the slug, because its prefix says what kind
+of work the station is doing and only the ticket knows that. It is looked up rather than rebuilt:
+one row of `herdr worktree list --cwd <repo>`, selected on a branch ending in `/<slug>`, carries
+the branch, the checkout path and the workspace id together. That is the same composition
+`/brigade` already performs, which is why a semantic prefix cost no registry - the mapping was
+never stored, only recomputed from a different column.
+
+`/brigade` recognises its own worktrees the same way, by joining them against the station
+directories that already exist under `~/.sous-chef`. Recognising them by branch prefix instead
+would sweep in the user's own `feat/*` branches, now that stations follow the ordinary convention.
 
 ## Why the reviewer works from the main repository
 
-`/pass` reviews `sous-chef/<slug>` **without entering the worktree**. A linked worktree shares the
-main repository's object store, so the branch is an ordinary ref:
+`/pass` reviews the station's branch **without entering the worktree**. A linked worktree shares
+the main repository's object store, so the branch is an ordinary ref:
 
 ```bash
-git -C <REPO> diff <BASE>...sous-chef/<slug>
-git -C <REPO> show sous-chef/<slug>:<path>
+git -C <REPO> diff <BASE>...<BRANCH>
+git -C <REPO> show <BRANCH>:<path>
 ```
 
 This avoids cross-directory permission friction entirely, and it means the reviewer never has to
@@ -133,6 +144,17 @@ on.
 .result.workspace.workspace_id   for focusing and for removal
 .result.worktree.path            the checkout path
 ```
+
+**`herdr worktree list` reports `label` as the repository label.** Every row of
+`herdr worktree list --cwd <repo>` carries the same `label` - the repository's - not the
+per-station `--label` the worktree was created with. A lookup by label matches every station at
+once, so stations are addressed by the branch suffix `/<slug>` instead.
+
+**The worktree directory is named after the branch,** with `/` replaced by `-`. Verified across
+two repositories: branch `sous-chef/philosophers-canon` in repo `sous-chef-test-enviroment`
+produces `~/.herdr/worktrees/sous-chef-test-enviroment/sous-chef-philosophers-canon`, where the
+repository label appears nowhere in the leaf. So the branch type shows up in the path too, and the
+path is always read from the `worktree create` response rather than predicted.
 
 **`herdr agent start` gives back the Claude session id** at
 `.result.agent.agent_session.value`, which correlates a station with its Claude Code transcript.

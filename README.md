@@ -8,7 +8,7 @@ run in parallel and never collide, because each one is a separate git worktree w
 Claude Code session.
 
 ```
-station = git worktree + herdr workspace + a chef-de-partie session + branch sous-chef/<slug>
+station = git worktree + herdr workspace + a chef-de-partie session + branch <type>/<slug>
 ```
 
 The chef-de-partie in each station is a **real interactive session**, not a background subagent.
@@ -34,10 +34,12 @@ You never have to type them. "open a station for the auth refactor", "how is the
 you  ▸ /sous-chef
      ▸ /fire dark-mode add a dark theme toggle to the settings page
 
-sous-chef ▸ station dark-mode is open on sous-chef/dark-mode, workspace w4.
+sous-chef ▸ station dark-mode is open on feat/dark-mode, workspace w4.
             It is planning and will need your approval in its own tab.
 
 you  ▸ /fire flaky-login fix the flaky login test
+
+sous-chef ▸ station flaky-login is open on fix/flaky-login, workspace w5.
 
      (two stations now cooking in parallel; you switch to w4, approve the plan,
       come back, switch to w5, answer a question, come back)
@@ -52,7 +54,7 @@ sous-chef ▸ reviewer running in the background. I am free in the meantime.
 
 you  ▸ ship dark-mode
 
-sous-chef ▸ this will push sous-chef/dark-mode (7 commits) and open a PR against main. Confirm?
+sous-chef ▸ this will push feat/dark-mode (7 commits) and open a PR against main. Confirm?
 ```
 
 Nothing about that flow blocks. While a review runs you can fire another ticket, pass another
@@ -107,6 +109,9 @@ getting pinged.
 - **It does not let a chef start writing on its own.** Every station starts in plan mode and has
   to get its plan approved in its own tab first. That plan is a list of atomic phases, and the
   chef implements one commit per phase, so the branch reads back as the plan you approved.
+- **It does not name branches after itself.** A station branch is `<type>/<slug>` - `feat/`,
+  `fix/`, `docs/` and the rest - so it reads like any other branch in your repository. sous-chef
+  infers the type from the task and tells you which one it picked.
 - **It does not touch your repository.** Tickets and review reports live in `~/.sous-chef/`,
   worktrees live in `~/.herdr/worktrees/`. No project ever needs a `.gitignore` entry for it.
 
