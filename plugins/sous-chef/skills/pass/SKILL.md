@@ -12,9 +12,9 @@ gate a station goes through before it can be plated.
 ## Pass only when the user says so
 
 The trigger is **the user telling you they are satisfied with a station's work**, not the
-station announcing it finished. When a chef pings you as ready, relay it and stop there. The
-user may want to look at the tab first, or change direction entirely, and a review dispatched
-before that is wasted work built on an assumption.
+station announcing it finished. When a chef pings you as ready, relay it in the one line the
+`sous-chef` skill describes and stop there. The user may want to look at the tab first, or change
+direction entirely, and a review dispatched before that is wasted work built on an assumption.
 
 Three properties define this verb:
 
@@ -86,8 +86,9 @@ herdr agent prompt "$SLUG" "Review $N is at $KITCHEN/$SLUG/review-$N.md. Read it
 herdr notification show "$SLUG" --body "review $N ready" --sound done
 ```
 
-Then tell the user, in one or two lines: the headline of the review and which station's tab it
-landed in. The triage itself happens there, with the chef that knows the code.
+Then tell the user one line: which review landed, and in which station's tab. Do not walk the
+findings here. The chef is about to summarize that same report in its own tab, with the code in
+front of it, and that is where the user picks what gets implemented.
 
 ## 4. Repeat as needed
 
