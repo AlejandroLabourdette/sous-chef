@@ -25,7 +25,8 @@ Then pick the branch type from the task, using the table in the `sous-chef` skil
 Refuse to fire if the station already exists:
 
 ```bash
-git -C "$REPO" for-each-ref --format='%(refname:short)' "refs/heads/$SLUG" "refs/heads/*/$SLUG"
+git -C "$REPO" for-each-ref --format='%(refname:short)' "refs/heads/$SLUG" "refs/heads/*/$SLUG" \
+  | grep . && echo "branch exists"
 herdr agent get "$SLUG" >/dev/null 2>&1 && echo "agent name taken"
 ```
 
