@@ -13,10 +13,13 @@ This is the destructive verb. Check first, then act.
 
 ## 1. Refuse to destroy work silently
 
+Resolve the station first, as described in the `sous-chef` skill. That one lookup gives you
+`$BRANCH`, `$WT` and `$WS`, which is everything the teardown needs.
+
 ```bash
-git -C "$WT" status --porcelain                                     # uncommitted work
-git -C "$REPO" rev-list --count "origin/sous-chef/$SLUG..sous-chef/$SLUG" 2>/dev/null \
-  || git -C "$REPO" rev-list --count "$BASE..sous-chef/$SLUG"       # unpushed commits
+git -C "$WT" status --porcelain                                 # uncommitted work
+git -C "$REPO" rev-list --count "origin/$BRANCH..$BRANCH" 2>/dev/null \
+  || git -C "$REPO" rev-list --count "$BASE..$BRANCH"            # unpushed commits
 ```
 
 If either shows something, stop and lay out precisely what would be lost: how many uncommitted
@@ -43,8 +46,6 @@ mv "$KITCHEN/$SLUG" "$KITCHEN/archive/$SLUG-$(date +%Y%m%d-%H%M%S)"
 ## 3. Remove the station
 
 ```bash
-WS="$(herdr worktree list --cwd "$REPO" | jq -r --arg b "sous-chef/$SLUG" \
-      '.result.worktrees[] | select(.branch == $b) | .open_workspace_id')"
 herdr worktree remove --workspace "$WS" --force
 ```
 
@@ -58,8 +59,8 @@ be under review or already pushed.
 Delete it only when the user asks, and check it is merged first:
 
 ```bash
-git -C "$REPO" branch --merged "origin/$BASE" --list "sous-chef/$SLUG"   # empty = not merged
-git -C "$REPO" branch -d "sous-chef/$SLUG"                               # -d, never -D
+git -C "$REPO" branch --merged "origin/$BASE" --list "$BRANCH"   # empty = not merged
+git -C "$REPO" branch -d "$BRANCH"                               # -d, never -D
 ```
 
 Use `-d`, never `-D`. If `-d` refuses, the branch has unmerged commits and the user needs to know

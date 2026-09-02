@@ -27,9 +27,12 @@ Three properties define this verb:
 
 ## 1. Check the branch is worth reviewing
 
+Resolve the station first, as described in the `sous-chef` skill, so `$BRANCH` and `$WT` come
+from herdr rather than from the slug.
+
 ```bash
-git -C "$WT" status --porcelain          # must be empty
-git -C "$REPO" rev-list --count "$BASE..sous-chef/$SLUG"   # must be > 0
+git -C "$WT" status --porcelain                   # must be empty
+git -C "$REPO" rev-list --count "$BASE..$BRANCH"  # must be > 0
 ```
 
 A dirty tree means uncommitted work that the review would not see. Tell the user and ask the
@@ -45,12 +48,12 @@ N=$(( $(ls "$KITCHEN/$SLUG"/review-*.md 2>/dev/null | wc -l) + 1 ))
 
 Then spawn a background subagent. Give it this shape of brief:
 
-> Review the branch `sous-chef/<slug>` of the repository at `<REPO>` against its base `<BASE>`.
+> Review the branch `<BRANCH>` of the repository at `<REPO>` against its base `<BASE>`.
 >
 > Work from the main repository, not from the worktree. The station branch is a ref in the same
-> object store, so `git -C <REPO> diff <BASE>...sous-chef/<slug>` gives you the full change and
-> `git -C <REPO> show sous-chef/<slug>:<path>` gives you any file at that branch. You do not need
-> to enter the worktree.
+> object store, so `git -C <REPO> diff <BASE>...<BRANCH>` gives you the full change and
+> `git -C <REPO> show <BRANCH>:<path>` gives you any file at that branch. You do not need to enter
+> the worktree.
 >
 > The ticket that produced this work is at `<KITCHEN>/<slug>/ticket.md`. Read it first: a change
 > that is clean but does not satisfy the ticket is the most important finding you can make.

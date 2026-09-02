@@ -11,11 +11,14 @@ outward-facing action in the whole flow, so it confirms before it acts.
 
 ## 1. Verify before promising anything
 
+Resolve the station first, as described in the `sous-chef` skill: `$BRANCH` and `$WT` come from
+herdr, never from the slug.
+
 ```bash
 git -C "$WT" status --porcelain                              # must be empty
-git -C "$REPO" rev-list --count "$BASE..sous-chef/$SLUG"     # must be > 0
+git -C "$REPO" rev-list --count "$BASE..$BRANCH"             # must be > 0
 git -C "$REPO" fetch origin --quiet
-git -C "$REPO" merge-base --is-ancestor "origin/$BASE" "sous-chef/$SLUG"   # 0 = up to date with base
+git -C "$REPO" merge-base --is-ancestor "origin/$BASE" "$BRANCH"   # 0 = up to date with base
 ```
 
 If the branch is behind the base, say so and offer to have the station rebase. Do the rebase in
@@ -23,7 +26,7 @@ the station, through its chef, not from here: it is that chef's worktree and it 
 resolve conflicts with the context it already has.
 
 ```bash
-herdr agent prompt "$SLUG" "sous-chef: $BASE has moved on. Rebase sous-chef/$SLUG onto origin/$BASE, resolve any conflicts, make sure the tests still pass, and report back when the branch is clean."
+herdr agent prompt "$SLUG" "sous-chef: $BASE has moved on. Rebase $BRANCH onto origin/$BASE, resolve any conflicts, make sure the tests still pass, and report back when the branch is clean."
 ```
 
 Also check whether the station went through the pass at all:
@@ -47,9 +50,9 @@ plan you just showed.
 ## 3. Push and open the pull request
 
 ```bash
-git -C "$WT" push -u origin "sous-chef/$SLUG"
+git -C "$WT" push -u origin "$BRANCH"
 gh pr create --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)" \
-  --base "$BASE" --head "sous-chef/$SLUG" \
+  --base "$BASE" --head "$BRANCH" \
   --title "<title>" --body-file "$KITCHEN/$SLUG/pr-body.md"
 ```
 

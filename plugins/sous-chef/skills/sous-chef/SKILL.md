@@ -71,6 +71,30 @@ KITCHEN="$HOME/.sous-chef/$(basename "$REPO")-$(printf '%s' "$REPO" | shasum | c
 
 `KITCHEN` is keyed by the repository path, so two checkouts of the same project never collide.
 
+## Resolve a station
+
+A slug does not tell you a station's branch, so never build one by hand. Look the station up
+instead: one `herdr worktree list` row carries the branch, the checkout path and the workspace id
+together, which is everything the verbs need.
+
+```bash
+ROW="$(herdr worktree list --cwd "$REPO" | jq -c --arg s "$SLUG" \
+      '.result.worktrees[] | select((.branch // "") | endswith("/" + $s))')"
+BRANCH="$(printf '%s' "$ROW" | jq -r .branch)"
+WT="$(printf '%s' "$ROW" | jq -r .path)"
+WS="$(printf '%s' "$ROW" | jq -r '.open_workspace_id // "closed"')"
+```
+
+Matching on the branch suffix is what makes this work whatever prefix the branch carries. It
+cannot collide: `feat/bar-foo` does not end with `/foo`.
+
+Do **not** match on `label`. Every row of `herdr worktree list --cwd "$REPO"` reports `label` as
+the *repository* label, not the per-station `--label` that created it, so a lookup by label
+silently matches every station at once.
+
+An empty `ROW` means there is no station for that slug. Say that, rather than carrying on with an
+empty branch name.
+
 ## Naming convention replaces a state registry
 
 One slug drives every identifier. Do not keep a JSON index of stations: it would drift from

@@ -14,27 +14,36 @@ stored index, on purpose: an index would drift and then lie about which stations
 REPO="$(git rev-parse --show-toplevel)"
 BASE="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')"
 [ -n "$BASE" ] || BASE="$(git rev-parse --abbrev-ref HEAD)"
+KITCHEN="$HOME/.sous-chef/$(basename "$REPO")-$(printf '%s' "$REPO" | shasum | cut -c1-8)"
 
 jq -n \
   --argjson w "$(herdr worktree list --cwd "$REPO")" \
-  --argjson a "$(herdr agent list)" '
+  --argjson a "$(herdr agent list)" \
+  --argjson k "$(ls "$KITCHEN" 2>/dev/null | grep -v '^archive$' | jq -Rs 'split("\n") | map(select(length > 0))')" '
   ($a.result.agents // []) as $ag
   | [ $w.result.worktrees[]
-      | select(.branch // "" | startswith("sous-chef/"))
       | . as $wt
+      | (($wt.branch // "") | split("/") | last) as $slug
+      | select($k | index($slug))
       | ([$ag[] | select(.cwd == $wt.path)] | first) as $g
-      | { slug:   ($wt.branch | sub("^sous-chef/"; "")),
+      | { slug:    $slug,
           branch:  $wt.branch,
           status: ($g.agent_status // "no session"),
           ws:     ($wt.open_workspace_id // "closed"),
           path:    $wt.path } ]'
 ```
 
-Then, per station, the git side:
+A station is a worktree whose branch ends in a slug you have a ticket for. That is the join, and
+it is why the branch prefix can be anything: the station directories under `$KITCHEN` already
+exist as durable intent, so no index has to be invented to recognise your own worktrees. Filtering
+on the branch prefix instead would sweep in the user's own `feat/*` branches, which follow the
+same convention.
+
+Then, per station, the git side, on the branch the join just gave you:
 
 ```bash
-git -C "$REPO" rev-list --left-right --count "$BASE...sous-chef/$SLUG"   # behind <tab> ahead
-git -C "$WT" status --porcelain | head -1                                 # non-empty = dirty
+git -C "$REPO" rev-list --left-right --count "$BASE...$BRANCH"   # behind <tab> ahead
+git -C "$WT" status --porcelain | head -1                        # non-empty = dirty
 ```
 
 ## Render
@@ -44,9 +53,9 @@ One line per station, ordered by urgency: `blocked` first, then `idle` and `done
 
 ```
 STATION    STATUS    AHEAD  TREE    WORKSPACE  BRANCH
-auth       blocked   3      clean   w4         sous-chef/auth
-dark-mode  working   7      dirty   w5         sous-chef/dark-mode
-flaky-test done      2      clean   w6         sous-chef/flaky-test
+auth       blocked   3      clean   w4         refactor/auth
+dark-mode  working   7      dirty   w5         feat/dark-mode
+flaky-test done      2      clean   w6         fix/flaky-test
 ```
 
 Read the statuses correctly, and translate them for the user rather than echoing herdr's
@@ -67,8 +76,8 @@ focus anything unasked.
 
 ## Edge cases worth reporting instead of hiding
 
-- A branch `sous-chef/*` with no worktree: the station was torn down but the branch survived,
-  which is normal after `/86`. Mention it as a leftover branch, not as a station.
+- An archived station directory with no worktree: the station was torn down but its branch may
+  have survived, which is normal after `/86`. Mention it as a leftover branch, not as a station.
 - A worktree with `no session`: the chef exited or the pane was closed. Offer to restart a chef
   in it, or to `/86` it.
 - A dirty tree on a station the user believes is finished: say so before any talk of `/pass` or
