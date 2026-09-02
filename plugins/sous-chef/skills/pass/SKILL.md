@@ -69,8 +69,8 @@ Then spawn a background subagent. Give it this shape of brief:
 > confident about as uncertain rather than dropping it or overstating it. If the branch is clean,
 > say that plainly in the file instead of manufacturing findings.
 >
-> Return a three line summary: how many correctness findings, how many quality findings, and the
-> single most important one.
+> Return two numbers and nothing else: how many correctness findings, and how many quality
+> findings. The report carries the detail, and the orchestrator relays only the counts.
 
 Reuse the existing `code-review` skill rather than inventing a reviewer. It already handles
 severity, verification and false-positive filtering.
@@ -86,9 +86,13 @@ herdr agent prompt "$SLUG" "Review $N is at $KITCHEN/$SLUG/review-$N.md. Read it
 herdr notification show "$SLUG" --body "review $N ready" --sound done
 ```
 
-Then tell the user one line: which review landed, and in which station's tab. Do not walk the
-findings here. The chef is about to summarize that same report in its own tab, with the code in
-front of it, and that is where the user picks what gets implemented.
+Then tell the user one line: the two counts, which review landed, and the workspace to switch to.
+The counts are the one thing a relay may carry beyond the news itself, because a count is not a
+finding - it tells the user whether there is anything to triage without deciding any of it for
+them, and a clean review has to be able to say so without costing a tab switch.
+
+Nothing past the counts. The chef is about to summarize that same report in its own tab, with the
+code in front of it, and that is where the user picks what gets implemented.
 
 ## 4. Repeat as needed
 
