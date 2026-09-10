@@ -6,10 +6,8 @@ argument-hint: <slug>
 
 # /86
 
-In a kitchen, to 86 something is to take it off the menu. Here it removes a station: the
-worktree and its herdr workspace go away, and the paperwork is archived.
-
-This is the destructive verb. Check first, then act.
+Remove a station: the worktree and its herdr workspace go away, the paperwork is archived. This
+is the destructive verb. Check first, then act.
 
 ## 1. Refuse to destroy work silently
 
@@ -23,8 +21,8 @@ git -C "$REPO" rev-list --count "origin/$BRANCH..$BRANCH" 2>/dev/null \
 ```
 
 If either shows something, stop and lay out precisely what would be lost: how many uncommitted
-files, how many unpushed commits. Then ask. Proceed only on an explicit yes to that specific
-loss, never on a general "yes, clean it up" given before the user knew.
+files, how many unpushed commits. Proceed only on an explicit yes to that specific loss, never on
+a general "yes, clean it up" given before the user knew.
 
 Also check the station is not still running:
 
@@ -53,10 +51,8 @@ This closes the workspace, kills the pane and removes the git worktree in one st
 
 ## 4. The branch is a separate decision
 
-`herdr worktree remove` does not delete the branch, and that is the right default: the branch may
-be under review or already pushed.
-
-Delete it only when the user asks, and check it is merged first:
+`herdr worktree remove` does not delete the branch, and that is the right default: it may be
+under review or already pushed. Delete it only when the user asks, and check it is merged first:
 
 ```bash
 git -C "$REPO" branch --merged "origin/$BASE" --list "$BRANCH"   # empty = not merged

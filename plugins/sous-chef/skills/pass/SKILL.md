@@ -6,24 +6,10 @@ argument-hint: <slug>
 
 # /pass
 
-In a kitchen, the pass is where every dish is checked before it leaves. Here it is the review
-gate a station goes through before it can be plated.
-
-## Pass only when the user says so
-
-The trigger is **the user telling you they are satisfied with a station's work**, not the
-station announcing it finished. When a chef pings you as ready, relay it in the shape that
-"Relaying a station's ping" fixes in the `sous-chef` skill, and stop there. The user may want to
-look at the tab first, or change direction entirely, and a review dispatched before that is
-wasted work built on an assumption.
-
-Three properties define this verb:
-
-1. **The user asked for it.** See above.
-2. **The review is independent.** A separate reviewer looks at the branch, not the chef that
-   wrote it. An agent reviewing its own work finds far less.
-3. **You do not block.** The review runs as a background subagent. You dispatch it and go
-   straight back to the user, who can fire another ticket or pass another station while it runs.
+The review gate a station goes through before it can be plated. Three properties define it:
+**the user asked for it** (when a chef pings you as ready, relay it in the shape that "Relaying a
+station's ping" fixes in the `sous-chef` skill, and stop there), **the reviewer is independent**
+of the chef that wrote the code, and **you do not block** while it runs.
 
 ## 1. Check the branch is worth reviewing
 
@@ -36,8 +22,8 @@ git -C "$WT" status --porcelain                   # must be empty
 git -C "$REPO" rev-list --count "$BASE..$BRANCH"  # must be > 0
 ```
 
-A dirty tree means uncommitted work that the review would not see. Tell the user and ask the
-station to commit first, rather than reviewing an incomplete picture.
+A dirty tree means uncommitted work the review would not see. Tell the user and ask the station
+to commit first.
 
 ## 2. Dispatch the reviewer in the background
 
@@ -47,7 +33,7 @@ Pick the report number from what already exists:
 N=$(( $(ls "$KITCHEN/$SLUG"/review-*.md 2>/dev/null | wc -l) + 1 ))
 ```
 
-Then spawn a background subagent. Give it this shape of brief:
+Then spawn a background subagent with this shape of brief:
 
 > Review the branch `<BRANCH>` of the repository at `<REPO>` against its base `<BASE>`.
 >
@@ -77,14 +63,9 @@ Then spawn a background subagent. Give it this shape of brief:
 > Return two numbers and nothing else: how many correctness findings, and how many quality
 > findings. The report carries the detail, and the orchestrator relays only the counts.
 
-Reuse the existing `code-review` skill rather than inventing a reviewer. It already handles
-severity, verification and false-positive filtering.
-
-Tell the user the review is running, and that you are free in the meantime. Then stop.
+Tell the user the review is running and that you are free meanwhile. Then stop.
 
 ## 3. Deliver it into the station's tab, on completion
-
-When the background task reports back:
 
 ```bash
 herdr agent prompt "$SLUG" "Review $N is at $KITCHEN/$SLUG/review-$N.md. Read it, summarize the findings for the user here, and wait for their direction on which to implement. Do not implement anything on your own initiative."
@@ -93,14 +74,14 @@ herdr notification show "$SLUG" --body "review $N ready" --sound done
 
 Then tell the user one line: the two counts, which review landed, and the workspace to switch to.
 The counts are the one thing a relay may carry beyond the news itself, because a count is not a
-finding - it tells the user whether there is anything to triage without deciding any of it for
-them, and a clean review has to be able to say so without costing a tab switch.
+finding - it says whether there is anything to triage without deciding any of it, and a clean
+review has to be able to say so without costing a tab switch.
 
-Nothing past the counts. The chef is about to summarize that same report in its own tab, with the
-code in front of it, and that is where the user picks what gets implemented.
+**Nothing past the counts.** The chef is about to summarize that same report in its own tab, with
+the code in front of it, and that is where the user picks what gets implemented.
 
 ## 4. Repeat as needed
 
-`/pass` is repeatable. After the chef implements the findings the user picked, pass it again and
-the reviewer will write `review-2.md`, aware of what came before. Keep passing until the user
-says they are satisfied, then `/plate`.
+`/pass` is repeatable: after the chef implements the findings the user picked, pass again and the
+reviewer writes `review-2.md`, aware of what came before. Keep passing until the user says they
+are satisfied, then `/plate`.

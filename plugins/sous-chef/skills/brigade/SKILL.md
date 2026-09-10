@@ -10,12 +10,9 @@ stored index, on purpose: an index would drift and then lie about which stations
 
 ## Gather
 
-```bash
-REPO="$(git rev-parse --show-toplevel)"
-BASE="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')"
-[ -n "$BASE" ] || BASE="$(git rev-parse --abbrev-ref HEAD)"
-KITCHEN="$HOME/.sous-chef/$(basename "$REPO")-$(printf '%s' "$REPO" | shasum | cut -c1-8)"
+Resolve `REPO`, `BASE` and `KITCHEN` as described in the `sous-chef` skill, then:
 
+```bash
 jq -n \
   --argjson w "$(herdr worktree list --cwd "$REPO")" \
   --argjson a "$(herdr agent list)" \
@@ -33,11 +30,9 @@ jq -n \
           path:    $wt.path } ]'
 ```
 
-A station is a worktree whose branch ends in a slug you have a ticket for. That is the join, and
-it is why the branch prefix can be anything: the station directories under `$KITCHEN` already
-exist as durable intent, so no index has to be invented to recognise your own worktrees. Filtering
-on the branch prefix instead would sweep in the user's own `feat/*` branches, which follow the
-same convention.
+A station is a worktree whose branch ends in a slug you have a ticket for. That join is why the
+branch prefix can be anything: filtering on the prefix instead would sweep in the user's own
+`feat/*` branches, which follow the same convention.
 
 Then, per station, the git side, on the branch the join just gave you:
 
@@ -49,7 +44,7 @@ git -C "$WT" status --porcelain | head -1                        # non-empty = d
 ## Render
 
 One line per station, ordered by urgency: `blocked` first, then `idle` and `done`, then
-`working`. A station nobody is waiting on is the least interesting line on the screen.
+`working`.
 
 ```
 STATION    STATUS    AHEAD  TREE    WORKSPACE  BRANCH
@@ -58,8 +53,7 @@ dark-mode  working   7      dirty   w5         feat/dark-mode
 flaky-test done      2      clean   w6         fix/flaky-test
 ```
 
-Read the statuses correctly, and translate them for the user rather than echoing herdr's
-vocabulary:
+Translate the statuses for the user rather than echoing herdr's vocabulary:
 
 | herdr status | What to tell the user |
 | --- | --- |
@@ -70,9 +64,8 @@ vocabulary:
 | `unknown` | a session is there but its state is unclear, which is **not** proof it finished |
 | `no session` | the worktree exists but no chef is running in it |
 
-Close with what to do next: which stations need the user, and how to get there
-(`herdr workspace focus <ws>`, or the herdr workspace picker). Offer to focus one, but do not
-focus anything unasked.
+Close with which stations need the user and how to get there (`herdr workspace focus <ws>`, or
+the herdr workspace picker). Offer to focus one, but do not focus anything unasked.
 
 ## Edge cases worth reporting instead of hiding
 
