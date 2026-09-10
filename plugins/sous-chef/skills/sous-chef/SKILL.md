@@ -31,7 +31,8 @@ command -v herdr git gh >/dev/null || { echo "missing herdr, git or gh"; exit 1;
 gh auth status >/dev/null 2>&1 || echo "warning: gh is not authenticated, /plate will fail"
 herdr agent rename "$HERDR_PANE_ID" sous-chef >/dev/null
 mkdir -p "$HOME/.sous-chef"
-claude plugin list 2>/dev/null | grep -q sous-chef || echo "warning: stations will not have the chef-de-partie skill"
+claude plugin list 2>/dev/null | grep -A1 '^  . sous-chef@' | grep Version \
+  || echo "warning: sous-chef is not installed; stations will not have the chef-de-partie skill"
 ```
 
 Renaming your pane is how stations address you back with `herdr agent prompt sous-chef`. The
@@ -39,37 +40,50 @@ plugin check matters because a `--plugin-dir` load applies only to your session,
 separate `claude` processes. Without `HERDR_ENV`, stop and say sous-chef needs herdr; do not
 emulate it with background processes.
 
-## Resolve the kitchen
+**Say the version out loud when you report readiness.** Installed plugins are copied into a cache
+at install time, so the skills you are running may be older than the repository they came from, and
+every symptom of that looks like success. The version is the only thing that distinguishes them.
 
-Every verb starts from the same four values:
+## The resolve preamble
+
+Every verb begins by resolving the same values. **They must all be resolved in one `Bash` call,
+together with that verb's own checks.** Shell state does not survive between calls - only the
+working directory does - so a value set in one call reads back empty in the next, and an empty
+value here fails silently rather than loudly: `git -C "" status --porcelain` does not error, it
+reports on your own checkout and comes back clean. That is the guard that stops `/pass` reviewing
+uncommitted work and stops `/86` destroying it.
+
+So: one invocation, ending in a JSON object you read. Never carry `$REPO`, `$WT` or `$BRANCH`
+across a call boundary.
 
 ```bash
-REPO="$(git rev-parse --show-toplevel)"
+SLUG="<the slug>"
+REPO="$(git rev-parse --show-toplevel)" || exit 1
 BASE="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')"
 [ -n "$BASE" ] || BASE="$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null)"
 [ -n "$BASE" ] || BASE="$(git rev-parse --abbrev-ref HEAD)"
+BASEREF="origin/$BASE"
+git -C "$REPO" rev-parse --verify --quiet "$BASEREF" >/dev/null 2>&1 || BASEREF="$BASE"
 KITCHEN="$HOME/.sous-chef/$(basename "$REPO")-$(printf '%s' "$REPO" | shasum | cut -c1-8)"
+
+ROWS="$(herdr worktree list --cwd "$REPO" | jq -c --arg s "$SLUG" \
+       '[.result.worktrees[] | select((.branch // "") | endswith("/" + $s))]')"
+MATCHES="$(printf '%s' "$ROWS" | jq length)"
 ```
 
 `KITCHEN` is keyed by the repository path, so two checkouts of the same project never collide.
 
-## Resolve a station
+`BASEREF` is the ref to compare against, and it is **not** always `origin/$BASE`. The `BASE`
+fallback chain can end at a plain local branch name with no remote-tracking ref behind it, and
+`git merge-base --is-ancestor origin/main <branch>` then exits **128** - "cannot compare", which is
+a different answer from "behind". Comparing against `$BASEREF` collapses that case instead of
+mistaking it for a stale branch.
 
-A slug does not tell you a station's branch, so never build one by hand. Look it up: one
-`herdr worktree list` row carries the branch, the checkout path and the workspace id together.
+### `MATCHES` must be exactly 1
 
-```bash
-ROWS="$(herdr worktree list --cwd "$REPO" | jq -c --arg s "$SLUG" \
-       '[.result.worktrees[] | select((.branch // "") | endswith("/" + $s))]')"
-N="$(printf '%s' "$ROWS" | jq length)"
-BRANCH="$(printf '%s' "$ROWS" | jq -r '.[0].branch')"
-WT="$(printf '%s' "$ROWS" | jq -r '.[0].path')"
-WS="$(printf '%s' "$ROWS" | jq -r '.[0].open_workspace_id // "closed"')"
-```
-
-**`N` must be exactly 1. Check it before using any of the three values**, because a match of two
-puts two newline-separated branch names straight into `git push` in `/plate` and into
-`herdr worktree remove` and `git branch -d` in `/86`.
+**Check it before using any other field.** A slug does not tell you a station's branch, so the
+branch is looked up, and a lookup that matched twice puts two newline-separated branch names
+straight into `git push` in `/plate` and into `herdr worktree remove` and `git branch -d` in `/86`.
 
 - `0` means there is no station for that slug. Say so, rather than carrying on with an empty
   branch name.
@@ -81,6 +95,22 @@ Matching on the branch suffix is what makes this work whatever prefix the branch
 slugs themselves cannot collide: `feat/bar-foo` does not end with `/foo`. Do **not** match on
 `label`: every row reports the *repository* label, not the per-station `--label` that created it,
 so a lookup by label silently matches every station at once.
+
+### The station fields
+
+When `MATCHES` is 1, the same invocation continues into the station's own values and whatever else
+the verb needs, and prints one object:
+
+```bash
+BRANCH="$(printf '%s' "$ROWS" | jq -r '.[0].branch')"
+WT="$(printf '%s' "$ROWS" | jq -r '.[0].path')"
+WS="$(printf '%s' "$ROWS" | jq -r '.[0].open_workspace_id // "closed"')"
+```
+
+`WS` is the literal string `closed` when no workspace is open for that worktree. It is a real
+state, not an error: the pane was closed or the chef exited. `/86` handles it explicitly.
+
+Each verb below shows the tail it appends to this preamble. Run preamble and tail as one command.
 
 ## Naming convention replaces a state registry
 
@@ -97,8 +127,9 @@ and git.
 | station directory | `$KITCHEN/<slug>/` |
 
 Only durable intent lives on disk, under `$KITCHEN/<slug>/`: `ticket.md` (the brief you wrote
-when firing), `plan.md` (the plan the chef wrote once the user approved it) and `review-N.md`
-(reports, numbered from 1). Nothing is ever written inside the user's repository.
+when firing), `plan.md` (the plan the chef wrote once the user approved it), `review-N.md`
+(reports, numbered from 1) and `pr-body.md` (what `/plate` shipped). Nothing is ever written inside
+the user's repository.
 
 ### Choosing the type
 
@@ -204,6 +235,8 @@ answering from those is not retelling.
   new station. Stations never talk to each other; coordination goes through you.
 - **You are read-only over the working tree.** You write only under `$KITCHEN`.
 - **Parse herdr JSON with `jq`; never predict identifiers.**
+- **One `Bash` call per verb preamble.** Shell state does not cross calls, and an unresolved path
+  makes a safety check pass instead of fail. See "The resolve preamble".
 - **Panes cannot be read for content** (Claude Code runs on the alternate screen). Use
   `herdr agent read` only to identify a blocking dialog; everything else travels as a file under
   `$KITCHEN` or a one-line `herdr agent prompt` ping.

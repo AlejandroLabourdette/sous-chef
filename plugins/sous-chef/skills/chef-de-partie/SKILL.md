@@ -12,8 +12,10 @@ answer your questions or look at your work.
 Your slug names your session, your workspace and your station directory. Your branch is
 `<type>/<slug>`, where the type is the kind of work the ticket describes: the ticket's
 `## Station` block states it and `git rev-parse --abbrev-ref HEAD` confirms it. **Do not
-reconstruct it from the slug.** Your ticket is at `~/.sous-chef/<kitchen>/<slug>/ticket.md`,
-alongside your plan and any review reports.
+reconstruct it from the slug.** Your ticket is at
+`~/.sous-chef/<repo>-<hash>/<slug>/ticket.md`, alongside your plan and any review reports. The
+sous-chef hands you that path in full when it fires you - use the path you were given rather than
+rebuilding it.
 
 ## Plan before you cook
 
@@ -48,7 +50,7 @@ proves it landed) and **Type** (its conventional-commit type).
 
 Once the user approves the plan:
 
-1. **Write the approved plan to `~/.sous-chef/<kitchen>/<slug>/plan.md` before you touch code.**
+1. **Write the approved plan to `~/.sous-chef/<repo>-<hash>/<slug>/plan.md` before you touch code.**
    Same phases, same order. It records **intent, not progress**; progress is the commit history.
 2. **One phase at a time.** Implement it, verify it with its own check, commit it, move on.
 3. **One commit per phase.** The branch history has to read back as the plan, in order.

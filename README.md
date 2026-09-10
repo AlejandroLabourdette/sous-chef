@@ -28,6 +28,9 @@ it, then switch back. That is the point: parallel work you can still talk to.
 You never have to type them. "open a station for the auth refactor", "how is the brigade doing",
 "review the dark mode one", "ship it" all land on the same verbs.
 
+The bare forms work when nothing else installed claims those names; `/sous-chef:fire`,
+`/sous-chef:pass` and so on always do.
+
 ## A service, end to end
 
 ```

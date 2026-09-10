@@ -37,7 +37,8 @@ station
 ├── herdr workspace   labelled <slug>, its own tab in the sidebar
 ├── chef-de-partie    a real `claude` process in that workspace's root pane
 ├── branch            <type>/<slug>
-└── station directory ~/.sous-chef/<repo>-<hash>/<slug>/  (ticket.md, plan.md, review-N.md)
+└── station directory ~/.sous-chef/<repo>-<hash>/<slug>/  (ticket.md, plan.md, review-N.md,
+                                                            pr-body.md)
 ```
 
 The chef-de-partie is an **interactive session, not a subagent**. That is the requirement the
@@ -55,7 +56,7 @@ path. A stored index would eventually disagree with reality about which stations
 status report that lies is worse than no status report.
 
 What *is* stored is durable intent only: the ticket you wrote when firing, the phase plan the
-user approved, and the review reports. Those cannot be recomputed, so they live on disk under
+user approved, the review reports, and the pull request body `/plate` shipped. Those cannot be recomputed, so they live on disk under
 `~/.sous-chef/<repo>-<hash>/<slug>/`. Keying by a hash of the repository path means two checkouts
 of the same project never collide.
 
@@ -116,6 +117,45 @@ never stored, only recomputed from a different column.
 directories that already exist under `~/.sous-chef`. Recognising them by branch prefix instead
 would sweep in the user's own `feat/*` branches, now that stations follow the ordinary convention.
 
+## Why each verb is one shell call
+
+Every verb resolves the repository, the base, the kitchen and the station, and runs its own safety
+checks, in a **single** `Bash` invocation that ends in one JSON object.
+
+That is not an optimisation, though it is also that - it takes `/pass`, `/plate` and `/86` from four
+calls to one, and `/brigade` from two-per-station to two. It is a correctness requirement. Shell
+state does not survive between tool calls: a variable assigned in one call reads back empty in the
+next. And the guards these verbs depend on fail *open* when that happens:
+
+```bash
+git -C "$WT" status --porcelain    # "must be empty"
+```
+
+With `$WT` empty this is `git -C ""`, which git resolves to the current directory - the
+orchestrator's own checkout. It exits 0 and prints nothing, so the check reports a clean tree
+without ever having looked at the station. That is the guard that stops `/pass` reviewing
+uncommitted work and stops `/86` destroying it.
+
+Keeping the whole preamble in one shell removes the failure mode rather than documenting around it.
+The prose in each skill still says why each check exists; only the plumbing was collapsed.
+
+The one field that has to be read before any other is `matches`. A slug does not name a branch, so
+the branch is looked up by suffix, and a lookup that matched twice would otherwise put two
+newline-separated branch names into `git push` and `git branch -d`.
+
+## Comparing against a base that may have no remote
+
+`BASE` is resolved from `origin/HEAD`, then `gh`, then the current branch. That last fallback yields
+a plain local branch name with nothing remote behind it, so `origin/<base>` need not exist.
+
+`git merge-base --is-ancestor origin/main <branch>` then exits **128**, and 128 is not 1: "I cannot
+compare these" is a different answer from "the branch is behind". Reading 128 as "behind" sends a
+station off to rebase onto a ref that does not exist.
+
+So the preamble resolves a `BASEREF` - `origin/<base>` when that ref exists, `<base>` otherwise -
+and every comparison uses it. `/plate` still distinguishes the three exit codes, because 128 can
+also mean something else went wrong, and reports that it cannot tell rather than guessing.
+
 ## Why the reviewer works from the main repository
 
 `/pass` reviews the station's branch **without entering the worktree**. A linked worktree shares
@@ -151,9 +191,11 @@ per-station `--label` the worktree was created with. A lookup by label matches e
 once, so stations are addressed by the branch suffix `/<slug>` instead.
 
 **The worktree directory is named after the branch,** with `/` replaced by `-`. Verified across
-two repositories: branch `sous-chef/philosophers-canon` in repo `sous-chef-test-enviroment`
-produces `~/.herdr/worktrees/sous-chef-test-enviroment/sous-chef-philosophers-canon`, where the
-repository label appears nowhere in the leaf. So the branch type shows up in the path too, and the
+three repositories, before and after the move to typed branches: branch `feat/demo` produces
+`~/.herdr/worktrees/station/feat-demo`, and under the old convention branch
+`sous-chef/philosophers-canon` in repo `sous-chef-test-enviroment` produced
+`~/.herdr/worktrees/sous-chef-test-enviroment/sous-chef-philosophers-canon`. In both the repository
+label appears nowhere in the leaf. So the branch type shows up in the path too, and the
 path is always read from the `worktree create` response rather than predicted.
 
 **`herdr agent start` gives back the Claude session id** at
@@ -182,3 +224,15 @@ keystroke instead of answering a security prompt on their behalf.
 
 **Stations must be started with `--permission-mode plan`.** Verified: the station's footer reads
 `plan mode on` and it cannot write until the user approves its plan in that tab.
+
+**`herdr worktree remove` needs a live workspace id.** A worktree whose workspace has been closed
+reports no `open_workspace_id`, and `herdr worktree remove --workspace <anything> --force` answers
+`{"error":{"code":"workspace_not_found"}}`. Verified by closing a workspace and retrying. That state
+is reachable in normal use - it is what `/brigade` shows as `no session` - so `/86` falls back to
+`git worktree remove` there. There is no workspace left to close, only a checkout to delete.
+
+**`refs/heads/*/<slug>` does not match nested prefixes.** Verified: `git for-each-ref
+'refs/heads/*/auth'` matches `feat/auth` but not `wip/deep/auth`, because git's `*` does not cross a
+`/` in a ref pattern. `/fire` passes `refs/heads/**/<slug>` as well, otherwise a user branch two
+levels deep slips past the collision check and then makes every station lookup ambiguous, since
+those match on the suffix.

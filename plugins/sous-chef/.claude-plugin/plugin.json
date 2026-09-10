@@ -1,6 +1,6 @@
 {
   "name": "sous-chef",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Talk to one agent, cook with a brigade. sous-chef opens a git worktree plus its own live Claude Code session per task, keeps them running in parallel under herdr, reviews each branch in the background, and ships it as a pull request.",
   "author": {
     "name": "Alejandro Labourdette",

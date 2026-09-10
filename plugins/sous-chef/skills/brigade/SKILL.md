@@ -10,36 +10,42 @@ stored index, on purpose: an index would drift and then lie about which stations
 
 ## Gather
 
-Resolve `REPO`, `BASE` and `KITCHEN` as described in the `sous-chef` skill, then:
+One `Bash` call. The per-station git facts have to be read with the worktree path live in the same
+shell, so the loop runs inside the same invocation as the join - which also makes `/brigade` cost
+two commands instead of two per station.
+
+Run the resolve preamble from the `sous-chef` skill (with no `SLUG`; `$ROWS` and `$MATCHES` are not
+used here), then:
 
 ```bash
-jq -n \
-  --argjson w "$(herdr worktree list --cwd "$REPO")" \
-  --argjson a "$(herdr agent list)" \
+herdr worktree list --cwd "$REPO" | jq -c --argjson a "$(herdr agent list)" \
   --argjson k "$(ls "$KITCHEN" 2>/dev/null | grep -v '^archive$' | jq -Rs 'split("\n") | map(select(length > 0))')" '
   ($a.result.agents // []) as $ag
-  | [ $w.result.worktrees[]
+  | [ .result.worktrees[]
       | . as $wt
       | (($wt.branch // "") | split("/") | last) as $slug
       | select($k | index($slug))
       | ([$ag[] | select(.cwd == $wt.path)] | first) as $g
-      | { slug:    $slug,
-          branch:  $wt.branch,
+      | { slug:   $slug,
+          branch: $wt.branch,
           status: ($g.agent_status // "no session"),
           ws:     ($wt.open_workspace_id // "closed"),
-          path:    $wt.path } ]'
+          path:   $wt.path } ]' \
+| jq -c '.[]' | while read -r row; do
+    WT="$(printf '%s' "$row" | jq -r .path)"
+    BR="$(printf '%s' "$row" | jq -r .branch)"
+    COUNTS="$(git -C "$REPO" rev-list --left-right --count "$BASEREF...$BR" 2>/dev/null)"
+    DIRTY="$(git -C "$WT" status --porcelain 2>/dev/null | head -1)"
+    printf '%s' "$row" | jq -c --arg b "$(printf '%s' "$COUNTS" | cut -f1)" \
+                              --arg a "$(printf '%s' "$COUNTS" | cut -f2)" \
+                              --arg d "$DIRTY" \
+      '. + {behind: $b, ahead: $a, dirty: ($d != "")}'
+  done | jq -s .
 ```
 
 A station is a worktree whose branch ends in a slug you have a ticket for. That join is why the
 branch prefix can be anything: filtering on the prefix instead would sweep in the user's own
 `feat/*` branches, which follow the same convention.
-
-Then, per station, the git side, on the branch the join just gave you:
-
-```bash
-git -C "$REPO" rev-list --left-right --count "$BASE...$BRANCH"   # behind <tab> ahead
-git -C "$WT" status --porcelain | head -1                        # non-empty = dirty
-```
 
 ## Render
 
@@ -73,7 +79,22 @@ the herdr workspace picker). Offer to focus one, but do not focus anything unask
   next to a branch of the user's own. Report both branches and say which one is the station - it
   is the worktree whose `path` matches that agent's `cwd`. Never pick one silently; `/plate` and
   `/86` cannot act on an ambiguous slug at all.
-- A worktree with `no session`: the chef exited or the pane was closed. Offer to restart a chef
-  in it, or to `/86` it.
+- A worktree with `no session`: the chef exited or the pane was closed, and its `ws` reads
+  `closed`. Offer to restart a chef in it, or to `/86` it - `/86` handles a closed workspace
+  explicitly. Restarting takes the row's literal path and slug:
+
+  ```bash
+  herdr worktree open --cwd <repo> --path <path> --label <slug> --no-focus \
+    | jq -r .result.root_pane.pane_id
+  ```
+
+  ```bash
+  herdr agent start <slug> --kind claude --pane <pane> -- \
+    --permission-mode plan -n <slug> --add-dir "$HOME/.sous-chef"
+  herdr agent prompt <slug> "You are the chef-de-partie for station <slug>. Read <kitchen>/<slug>/ticket.md and plan.md, then invoke the chef-de-partie skill and follow it."
+  ```
+
+  The restarted chef reads the same ticket and plan, so it picks up from where the branch already
+  is. It starts in plan mode like any station.
 - A dirty tree on a station the user believes is finished: say so before any talk of `/pass` or
   `/plate`, because uncommitted work is invisible to a branch review.
