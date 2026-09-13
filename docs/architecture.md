@@ -60,6 +60,11 @@ user approved, the review reports, and the pull request body `/plate` shipped. T
 `~/.sous-chef/<repo>-<hash>/<slug>/`. Keying by a hash of the repository path means two checkouts
 of the same project never collide.
 
+The `Sous-chef:` line in a ticket is the same kind of thing as `Branch:` and `Worktree:` - an
+address, recorded once at fire time and never updated. It says **where to knock, not who is alive**:
+if the orchestrator is gone the ping fails and the chef says so in its own tab. What the invariant
+forbids is a document that asserts which stations exist, because that is what drifts and then lies.
+
 `plan.md` is intent, not state, which is why it does not break the invariant. It records the
 phases the user agreed to, and it is never updated to say how far along the station is. Progress
 is read from `git log`, where one commit per phase makes it unambiguous.
@@ -71,10 +76,33 @@ Nothing is ever written inside the user's repository.
 The user must always be able to fire another ticket. So:
 
 - Reviews run as **background subagents**. `/pass` dispatches and returns immediately.
-- Stations are never waited on. They report back themselves, with one
-  `herdr agent prompt sous-chef` ping per event.
-- The orchestrator renames its own pane to `sous-chef` at startup, which is what makes that
-  reverse channel addressable by name.
+- Stations are never waited on. They report back themselves, with one `herdr agent prompt` ping per
+  event, addressed to the brigade name their ticket names.
+
+## Addressing, and why the two directions differ
+
+herdr agent names are **global to the machine and unique among live agents**. One fixed name
+therefore allows exactly one brigade anywhere, which is the whole reason the two directions are
+addressed differently.
+
+**Orchestrator: a derived name.** At startup the orchestrator renames its own pane to
+`sc-<repo-name>-<hash8>`, from the same hash of the repository path that keys `~/.sous-chef`. Every
+repository gets its own brigade, and because the name is derived rather than allocated, a restarted
+orchestrator re-claims it - which is what makes the name safe to write into a ticket that is read
+hours later. Two sous-chefs in one repository is the one case that cannot work, and Preflight says
+so instead of silently taking the channel.
+
+The rename is worth keeping even though a `cwd` join could find the orchestrator too, because it is
+**self-declaring**: only a session that ran Preflight claims the name. A join on `cwd` would match
+any innocent `claude` session sitting in the repository root, and would miss an orchestrator started
+from a subdirectory.
+
+**Stations: the pane.** A station is addressed by the pane hosting it, resolved from
+`herdr agent list` by the agent whose `cwd` is that station's worktree - the join `/brigade` already
+performs - or straight from the `herdr worktree create` response. The address is resolved in the
+same shell call that uses it, so nothing can go stale, and `pane == none` is the direct answer to
+"is a chef running here", which an open workspace is not. A station's herdr agent **name** carries
+the same four-character hash suffix and exists only so the sidebar reads well.
 
 ## Why plans are phased
 
@@ -101,7 +129,8 @@ One slug drives every identifier, which is what makes state composable without a
 | --- | --- |
 | slug | `^[a-z][a-z0-9_-]{0,31}$`, herdr's agent-name rule |
 | branch | `<type>/<slug>`, type inferred from the ticket |
-| herdr agent name | `<slug>` |
+| brigade name | `sc-<repo-name>-<hash8>`, from the repository path |
+| herdr agent name | `<slug>-<hash4>`, display only - stations are addressed by pane |
 | herdr workspace label | `<slug>` |
 | worktree path | `~/.herdr/worktrees/<repo>/<type>-<slug>` |
 | station directory | `~/.sous-chef/<repo>-<hash>/<slug>/` |
@@ -197,6 +226,13 @@ three repositories, before and after the move to typed branches: branch `feat/de
 `~/.herdr/worktrees/sous-chef-test-enviroment/sous-chef-philosophers-canon`. In both the repository
 label appears nowhere in the leaf. So the branch type shows up in the path too, and the
 path is always read from the `worktree create` response rather than predicted.
+
+**herdr agent names are global to the machine and unique among live agents.** They match
+`[a-z][a-z0-9_-]{0,31}`, and a name is released when its agent exits. `herdr agent <cmd> <target>`
+takes either a live name or the pane id hosting the agent - verified: `herdr agent get w1E:p1`
+returns that pane's row. Closed pane and tab ids are never reused, so a stale pane address fails
+rather than reaching a stranger. This is why only the orchestrator holds a name, derived from its
+repository, and every station is addressed by pane.
 
 **`herdr agent start` gives back the Claude session id** at
 `.result.agent.agent_session.value`, which correlates a station with its Claude Code transcript.

@@ -28,7 +28,9 @@ if [ "$MATCHES" = 1 ]; then
     UNPUSHED="$(git -C "$REPO" rev-list --count "$BASEREF..$BRANCH" 2>/dev/null)"
   fi
   MERGED="$(git -C "$REPO" branch --merged "$BASEREF" --list "$BRANCH" 2>/dev/null | wc -l | tr -d ' ')"
-  STATUS="$(herdr agent get "$SLUG" 2>&1 | jq -r '.result.agent.agent_status // "no session"')"
+  CHEF="$(herdr agent list 2>/dev/null | jq -c --arg p "$WT" \
+          '[(.result.agents // [])[] | select(.cwd == $p)] | .[0] // {}')"
+  STATUS="$(printf '%s' "$CHEF" | jq -r '.agent_status // "no session"')"
 fi
 jq -n --argjson m "$MATCHES" --argjson rows "$ROWS" \
       --arg b "${BRANCH:-}" --arg w "${WT:-}" --arg ws "${WS:-}" --arg k "$KITCHEN/$SLUG" \
@@ -45,14 +47,11 @@ Read it before removing anything:
 - **`uncommitted_files` or `unpushed_commits` is non-zero** - stop and lay out precisely what would
   be lost, by those numbers. Proceed only on an explicit yes to that specific loss, never on a
   general "yes, clean it up" given before the user knew.
-- **`agent_status` is `working`** - the station is mid-task. Say so and ask before killing it.
+- **`agent_status` is `working`** - the station is mid-task. Say so and ask before killing it. It is
+  `no session` when no chef is running in the worktree, which is normal after a pane was closed.
 
 `unpushed_commits` counts against `origin/<branch>` when the branch was pushed, and against the
 base otherwise - where every commit on the branch is unpushed by definition.
-
-`herdr agent get` writes its `agent_not_found` error to **stderr**, not stdout, so that call pipes
-`2>&1` rather than discarding it - otherwise jq gets nothing and `agent_status` comes back empty
-instead of `no session`.
 
 ## 2. Archive the paperwork
 

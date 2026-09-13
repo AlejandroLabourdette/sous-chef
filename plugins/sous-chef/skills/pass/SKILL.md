@@ -23,15 +23,19 @@ if [ "$MATCHES" = 1 ]; then
   BRANCH="$(printf '%s' "$ROWS" | jq -r '.[0].branch')"
   WT="$(printf '%s' "$ROWS" | jq -r '.[0].path')"
   WS="$(printf '%s' "$ROWS" | jq -r '.[0].open_workspace_id // "closed"')"
+  CHEF="$(herdr agent list 2>/dev/null | jq -c --arg p "$WT" \
+          '[(.result.agents // [])[] | select(.cwd == $p)] | .[0] // {}')"
+  PANE="$(printf '%s' "$CHEF" | jq -r '.pane_id // "none"')"
   DIRTY="$(git -C "$WT" status --porcelain | head -1)"
   AHEAD="$(git -C "$REPO" rev-list --count "$BASEREF..$BRANCH")"
   NEXT="$(( $(find "$KITCHEN/$SLUG" -maxdepth 1 -name 'review-*.md' 2>/dev/null | wc -l) + 1 ))"
 fi
 jq -n --argjson m "$MATCHES" --argjson rows "$ROWS" \
       --arg b "${BRANCH:-}" --arg w "${WT:-}" --arg ws "${WS:-}" --arg br "$BASEREF" \
+      --arg pn "${PANE:-none}" \
       --arg k "$KITCHEN/$SLUG" --arg d "${DIRTY:-}" --arg a "${AHEAD:-}" --arg n "${NEXT:-}" \
   '{matches: $m, all_matches: [$rows[].branch], branch: $b, worktree: $w, workspace: $ws,
-    baseref: $br, station_dir: $k, dirty: ($d != ""), ahead: $a, next_review: $n}'
+    pane: $pn, baseref: $br, station_dir: $k, dirty: ($d != ""), ahead: $a, next_review: $n}'
 ```
 
 Read the object before doing anything with it:
@@ -42,8 +46,11 @@ Read the object before doing anything with it:
   station to commit first.
 - **`ahead` is `0`** - there is nothing to review. Say so rather than dispatching a reviewer at an
   empty diff.
-- **`workspace` is `closed`** - the chef is gone. The branch is still reviewable, but step 3 has
-  nowhere to deliver the report; say so and offer to restart the chef first.
+- **`pane` is `none`** - no chef is running in that worktree. The branch is still reviewable, but
+  step 3 has nowhere to deliver the report; say so and offer to restart the chef first. This is the
+  direct signal, not `workspace`: a workspace can be open with a dead chef in it, and delivering
+  into that reports success into nothing. `workspace` still tells you whether there is a tab left
+  to restart into.
 
 `next_review` is the report number for step 2, and `station_dir` is where it goes.
 
@@ -88,7 +95,7 @@ When the background subagent reports back - you do not wait for it, the result a
 deliver the report into the station:
 
 ```bash
-herdr agent prompt <slug> "Review <n> is at <station_dir>/review-<n>.md. Read it, summarize the findings for the user here, and wait for their direction on which to implement. Do not implement anything on your own initiative."
+herdr agent prompt <pane> "Review <n> is at <station_dir>/review-<n>.md. Read it, summarize the findings for the user here, and wait for their direction on which to implement. Do not implement anything on your own initiative."
 herdr notification show <slug> --body "review <n> ready" --sound done
 ```
 

@@ -18,6 +18,9 @@ Run the resolve preamble from the `sous-chef` skill and this tail as a **single*
 if [ "$MATCHES" = 1 ]; then
   BRANCH="$(printf '%s' "$ROWS" | jq -r '.[0].branch')"
   WT="$(printf '%s' "$ROWS" | jq -r '.[0].path')"
+  CHEF="$(herdr agent list 2>/dev/null | jq -c --arg p "$WT" \
+          '[(.result.agents // [])[] | select(.cwd == $p)] | .[0] // {}')"
+  PANE="$(printf '%s' "$CHEF" | jq -r '.pane_id // "none"')"
   DIRTY="$(git -C "$WT" status --porcelain | head -1)"
   git -C "$REPO" fetch origin --quiet 2>/dev/null
   AHEAD="$(git -C "$REPO" rev-list --count "$BASEREF..$BRANCH" 2>/dev/null)"
@@ -27,10 +30,11 @@ if [ "$MATCHES" = 1 ]; then
 fi
 jq -n --argjson m "$MATCHES" --argjson rows "$ROWS" \
       --arg b "${BRANCH:-}" --arg w "${WT:-}" --arg br "$BASEREF" --arg k "$KITCHEN/$SLUG" \
+      --arg pn "${PANE:-none}" \
       --arg d "${DIRTY:-}" --arg a "${AHEAD:-}" --arg sy "${SYNC:-}" \
       --arg r "${REVIEWS:-0}" --arg c "${COMMITS:-}" \
   '{matches: $m, all_matches: [$rows[].branch], branch: $b, worktree: $w, baseref: $br,
-    station_dir: $k, dirty: ($d != ""), ahead: $a, sync: $sy, reviews: $r,
+    pane: $pn, station_dir: $k, dirty: ($d != ""), ahead: $a, sync: $sy, reviews: $r,
     commits: ($c | split("\n") | map(select(length > 0)))}'
 ```
 
@@ -45,8 +49,11 @@ Read it before promising the user anything:
   you: it is that chef's worktree and it has the context to resolve conflicts.
 
   ```bash
-  herdr agent prompt <slug> "sous-chef: <base> has moved on. Rebase <branch> onto <baseref>, resolve any conflicts, make sure the tests still pass, and report back when the branch is clean."
+  herdr agent prompt <pane> "sous-chef: <base> has moved on. Rebase <branch> onto <baseref>, resolve any conflicts, make sure the tests still pass, and report back when the branch is clean."
   ```
+
+  If `pane` is `none` there is no chef to ask. Say the branch is behind and that the station has to
+  be restarted - `/brigade` shows how - before it can be plated.
 
   **Then stop.** The rebase happens in the station's own time and the branch is not shippable until
   it lands. Tell the user what you asked for and that they should `/plate` again once the station

@@ -30,6 +30,7 @@ herdr worktree list --cwd "$REPO" | jq -c --argjson a "$(herdr agent list)" \
           branch: $wt.branch,
           status: ($g.agent_status // "no session"),
           ws:     ($wt.open_workspace_id // "closed"),
+          pane:   ($g.pane_id // "none"),
           path:   $wt.path } ]' \
 | jq -c '.[]' | while read -r row; do
     WT="$(printf '%s' "$row" | jq -r .path)"
@@ -77,7 +78,7 @@ the herdr workspace picker). Offer to focus one, but do not focus anything unask
 
 - Two rows with the same slug: two worktrees have branches ending in `/<slug>`, usually a station
   next to a branch of the user's own. Report both branches and say which one is the station - it
-  is the worktree whose `path` matches that agent's `cwd`. Never pick one silently; `/plate` and
+  is the worktree whose `path` equals an agent's `cwd`. Never pick one silently; `/plate` and
   `/86` cannot act on an ambiguous slug at all.
 - A worktree with `no session`: the chef exited or the pane was closed, and its `ws` reads
   `closed`. Offer to restart a chef in it, or to `/86` it - `/86` handles a closed workspace
@@ -89,12 +90,14 @@ the herdr workspace picker). Offer to focus one, but do not focus anything unask
   ```
 
   ```bash
-  herdr agent start <slug> --kind claude --pane <pane> -- \
+  herdr agent start <slug>-<hash4> --kind claude --pane <pane> -- \
     --permission-mode plan -n <slug> --add-dir "$HOME/.sous-chef"
-  herdr agent prompt <slug> "You are the chef-de-partie for station <slug>. Read <kitchen>/<slug>/ticket.md and plan.md, then invoke the chef-de-partie skill and follow it."
+  herdr agent prompt <pane> "You are the chef-de-partie for station <slug>. Read <kitchen>/<slug>/ticket.md and plan.md, then invoke the chef-de-partie skill and follow it."
   ```
 
-  The restarted chef reads the same ticket and plan, so it picks up from where the branch already
-  is. It starts in plan mode like any station.
+  `<hash4>` is the first four characters of `$HASH`, the same suffix `/fire` gives a station's herdr
+  agent name, and `<pane>` is the one `herdr worktree open` just returned. The restarted chef reads
+  the same ticket and plan, so it picks up from where the branch already is. It starts in plan mode
+  like any station.
 - A dirty tree on a station the user believes is finished: say so before any talk of `/pass` or
   `/plate`, because uncommitted work is invisible to a branch review.

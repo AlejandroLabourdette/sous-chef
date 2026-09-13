@@ -27,22 +27,61 @@ Once per session, before the first station:
 
 ```bash
 test "${HERDR_ENV:-}" = 1 || { echo "sous-chef requires herdr"; exit 1; }
-command -v herdr git gh >/dev/null || { echo "missing herdr, git or gh"; exit 1; }
+test -n "${HERDR_PANE_ID:-}" || { echo "no HERDR_PANE_ID: stations could not report back"; exit 1; }
+for t in herdr git gh jq; do command -v "$t" >/dev/null || { echo "missing $t"; exit 1; }; done
 gh auth status >/dev/null 2>&1 || echo "warning: gh is not authenticated, /plate will fail"
-herdr agent rename "$HERDR_PANE_ID" sous-chef >/dev/null
+REPO="$(git rev-parse --show-toplevel)" || exit 1
+HASH="$(printf '%s' "$REPO" | shasum | cut -c1-8)"
+BRIGADE="sc-$(printf '%s' "$(basename "$REPO")" | tr '[:upper:]' '[:lower:]' \
+              | tr -cs 'a-z0-9_-' '-' | cut -c1-18 | sed 's/-$//')-$HASH"
+HOLDER="$(herdr agent list 2>/dev/null | jq -r --arg n "$BRIGADE" \
+  '[(.result.agents // [])[] | select(.name == $n)] | .[0].pane_id // ""')"
+if [ -z "$HOLDER" ] || [ "$HOLDER" = "$HERDR_PANE_ID" ]; then
+  herdr agent rename "$HERDR_PANE_ID" "$BRIGADE" >/dev/null 2>&1 || HOLDER="rename-failed"
+fi
 mkdir -p "$HOME/.sous-chef"
+jq -n --arg b "$BRIGADE" --arg h "$HOLDER" --arg p "$HERDR_PANE_ID" \
+  '{brigade: $b, held_by: $h, mine: ($h == "" or $h == $p)}'
 claude plugin list 2>/dev/null | grep -A1 '^  . sous-chef@' | grep Version \
   || echo "warning: sous-chef is not installed; stations will not have the chef-de-partie skill"
 ```
 
-Renaming your pane is how stations address you back with `herdr agent prompt sous-chef`. The
-plugin check matters because a `--plugin-dir` load applies only to your session, and stations are
-separate `claude` processes. Without `HERDR_ENV`, stop and say sous-chef needs herdr; do not
-emulate it with background processes.
+`$BRIGADE` is your name in the brigade, and it is what stations address you back with. It is
+**derived from the repository path**, not fixed: herdr agent names are global to the machine and
+unique among live agents, so a literal `sous-chef` would let only one brigade run anywhere. Derived
+rather than allocated also means you re-claim the same name when this session restarts in a
+different pane, which is what makes the name safe for `/fire` to write into a ticket that is read
+hours later.
 
-**Say the version out loud when you report readiness.** Installed plugins are copied into a cache
-at install time, so the skills you are running may be older than the repository they came from, and
-every symptom of that looks like success. The version is the only thing that distinguishes them.
+Read `mine` from the object:
+
+- **`mine` is true** - you hold the channel. Stations you fire will reach you.
+- **`mine` is false** - another live sous-chef already holds this repository's brigade, at pane
+  `held_by`. **Stop.** One kitchen per repository: you would share its `$KITCHEN` and write tickets
+  addressed to it. Name its workspace, offer `herdr workspace focus <ws>`, and say the user can
+  work there. herdr cannot steal a live name, so if that session is wedged or forgotten, offer the
+  way out - and take it only on an explicit yes, because it cuts the other session's reverse
+  channel and redirects its stations here:
+
+  ```bash
+  herdr agent rename <held_by> --clear && herdr agent rename "$HERDR_PANE_ID" "$BRIGADE"
+  ```
+
+  `held_by` reads `rename-failed` when the name was free but the rename itself failed. That is a
+  herdr error, not another sous-chef: run the rename again on its own and report what it says.
+
+`command -v` is looped rather than given four arguments at once: under bash,
+`command -v a b c` exits 0 even when every one of them is missing, so the one-line form was a guard
+that never fired. `$HERDR_PANE_ID` is checked because the whole reverse channel rests on it - unset,
+the rename silently renames nothing. The plugin check matters because a `--plugin-dir` load applies
+only to your session, and stations are separate `claude` processes. Without `HERDR_ENV`, stop and
+say sous-chef needs herdr; do not emulate it with background processes.
+
+**Say the version and your brigade name out loud when you report readiness.** Installed plugins are
+copied into a cache at install time, so the skills you are running may be older than the repository
+they came from, and every symptom of that looks like success. The version is the only thing that
+distinguishes them. The brigade name is the one the user will see in herdr beside any other
+sous-chef they have running.
 
 ## The resolve preamble
 
@@ -64,7 +103,10 @@ BASE="$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | 
 [ -n "$BASE" ] || BASE="$(git rev-parse --abbrev-ref HEAD)"
 BASEREF="origin/$BASE"
 git -C "$REPO" rev-parse --verify --quiet "$BASEREF" >/dev/null 2>&1 || BASEREF="$BASE"
-KITCHEN="$HOME/.sous-chef/$(basename "$REPO")-$(printf '%s' "$REPO" | shasum | cut -c1-8)"
+HASH="$(printf '%s' "$REPO" | shasum | cut -c1-8)"
+KITCHEN="$HOME/.sous-chef/$(basename "$REPO")-$HASH"
+BRIGADE="sc-$(printf '%s' "$(basename "$REPO")" | tr '[:upper:]' '[:lower:]' \
+              | tr -cs 'a-z0-9_-' '-' | cut -c1-18 | sed 's/-$//')-$HASH"
 
 ROWS="$(herdr worktree list --cwd "$REPO" | jq -c --arg s "$SLUG" \
        '[.result.worktrees[] | select((.branch // "") | endswith("/" + $s))]')"
@@ -72,6 +114,8 @@ MATCHES="$(printf '%s' "$ROWS" | jq length)"
 ```
 
 `KITCHEN` is keyed by the repository path, so two checkouts of the same project never collide.
+`BRIGADE` is your own herdr agent name, from the same hash: Preflight claims it and `/fire` records
+it in every ticket, so the two always name the same checkout.
 
 `BASEREF` is the ref to compare against, and it is **not** always `origin/$BASE`. The `BASE`
 fallback chain can end at a plain local branch name with no remote-tracking ref behind it, and
@@ -89,7 +133,7 @@ straight into `git push` in `/plate` and into `herdr worktree remove` and `git b
   branch name.
 - More than `1` means the slug is ambiguous - a station on `feat/dark-mode` beside the user's own
   `wip/dark-mode`, say. Stop and name the branches you matched. `herdr agent list` tells you which
-  one is the station, because the agent named `<slug>` reports that station's `cwd`.
+  one is the station: it is the agent whose `cwd` equals that worktree's path.
 
 Matching on the branch suffix is what makes this work whatever prefix the branch carries, and
 slugs themselves cannot collide: `feat/bar-foo` does not end with `/foo`. Do **not** match on
@@ -105,10 +149,27 @@ the verb needs, and prints one object:
 BRANCH="$(printf '%s' "$ROWS" | jq -r '.[0].branch')"
 WT="$(printf '%s' "$ROWS" | jq -r '.[0].path')"
 WS="$(printf '%s' "$ROWS" | jq -r '.[0].open_workspace_id // "closed"')"
+CHEF="$(herdr agent list 2>/dev/null | jq -c --arg p "$WT" \
+        '[(.result.agents // [])[] | select(.cwd == $p)] | .[0] // {}')"
+PANE="$(printf '%s' "$CHEF" | jq -r '.pane_id // "none"')"
+STATUS="$(printf '%s' "$CHEF" | jq -r '.agent_status // "no session"')"
 ```
 
 `WS` is the literal string `closed` when no workspace is open for that worktree. It is a real
 state, not an error: the pane was closed or the chef exited. `/86` handles it explicitly.
+
+`PANE` is how you address the station. **Never address a chef by its slug.** herdr agent names are
+global to the machine, so a station in another repository can hold the name you would have used;
+the chef is found instead by the one thing that is unambiguous - the agent whose `cwd` is this
+station's worktree. That is the join `/brigade` has always used.
+
+`(.result.agents // [])` is not decoration: `.result.agents[]` errors outright when the key is
+absent. `--arg`, never `--argjson`, so an unresolved `$WT` matches nothing and yields `none`
+instead of failing.
+
+`PANE` is the literal string `none` when no chef is running in that worktree, and `STATUS` is then
+`no session`. That is the direct liveness signal, and a better one than `WS`: a workspace can be
+open with no chef in it.
 
 Each verb below shows the tail it appends to this preamble. Run preamble and tail as one command.
 
@@ -121,10 +182,15 @@ and git.
 | --- | --- |
 | slug | matches `^[a-z][a-z0-9_-]{0,31}$` (herdr's agent-name rule) |
 | branch | `<type>/<slug>`, see below |
-| herdr agent name | `<slug>` |
+| brigade name (yours) | `sc-<repo-name>-<hash8>`, derived from the repository path |
+| herdr agent name of a station | `<slug>-<hash4>`, **display only** - stations are addressed by pane |
 | herdr workspace label | `<slug>` |
 | worktree path | `~/.herdr/worktrees/<repo-name>/<type>-<slug>` (herdr picks it, from the branch) |
 | station directory | `$KITCHEN/<slug>/` |
+
+herdr agent names are global to the machine and unique among live agents, which is why neither the
+brigade nor a station can be named after the slug alone: another repository may already hold it.
+Both suffixes come from the hash of the repository path, so they are stable across restarts.
 
 Only durable intent lives on disk, under `$KITCHEN/<slug>/`: `ticket.md` (the brief you wrote
 when firing), `plan.md` (the plan the chef wrote once the user approved it), `review-N.md`
@@ -234,6 +300,8 @@ answering from those is not retelling.
 - **One ticket per station.** Added scope goes to that station's chef; a different task gets a
   new station. Stations never talk to each other; coordination goes through you.
 - **You are read-only over the working tree.** You write only under `$KITCHEN`.
+- **Address stations by pane, never by slug.** herdr agent names are global to the machine. The
+  pane comes from the `cwd` join in the preamble, or from `herdr worktree create`.
 - **Parse herdr JSON with `jq`; never predict identifiers.**
 - **One `Bash` call per verb preamble.** Shell state does not cross calls, and an unresolved path
   makes a safety check pass instead of fail. See "The resolve preamble".

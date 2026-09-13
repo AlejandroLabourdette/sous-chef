@@ -117,6 +117,9 @@ getting pinged.
   infers the type from the task and tells you which one it picked.
 - **It does not touch your repository.** Tickets and review reports live in `~/.sous-chef/`,
   worktrees live in `~/.herdr/worktrees/`. No project ever needs a `.gitignore` entry for it.
+- **It does not stop at one project.** A brigade is per repository, and several run side by side
+  on one machine, each with its own sous-chef. Every station reports to the one that fired it, so
+  slugs only have to be unique inside a repository.
 
 ## How it works
 

@@ -12,8 +12,8 @@ answer your questions or look at your work.
 Your slug names your session, your workspace and your station directory. Your branch is
 `<type>/<slug>`, where the type is the kind of work the ticket describes: the ticket's
 `## Station` block states it and `git rev-parse --abbrev-ref HEAD` confirms it. **Do not
-reconstruct it from the slug.** Your ticket is at
-`~/.sous-chef/<repo>-<hash>/<slug>/ticket.md`, alongside your plan and any review reports. The
+reconstruct it from the slug.** That same block names the sous-chef you report to. Your ticket is
+at `~/.sous-chef/<repo>-<hash>/<slug>/ticket.md`, alongside your plan and any review reports. The
 sous-chef hands you that path in full when it fires you - use the path you were given rather than
 rebuilding it.
 
@@ -79,8 +79,13 @@ Two channels, one message per event, never a stream of updates:
 
 ```bash
 herdr notification show "<slug>" --body "<one line>" --sound done   # tell the user
-herdr agent prompt sous-chef "<slug>: <one line status>"            # tell the sous-chef
+herdr agent prompt "<sous-chef>" "<slug>: <one line status>"        # tell the sous-chef
 ```
+
+`<sous-chef>` is the `Sous-chef:` line of your ticket's `## Station` block, used verbatim. herdr
+agent names are global to the machine, so an orchestrator's name is derived from its repository and
+is **not** the literal `sous-chef`: several sous-chefs run at once, one per project, and a guessed
+name reaches somebody else's.
 
 Send them when, and only when:
 
@@ -90,9 +95,10 @@ Send them when, and only when:
   decision in the ping; the sous-chef relays that line as it stands.
 - **You cannot do the ticket** as written, and why.
 
-Never ping for progress or per phase; herdr already shows this station's state. If
-`herdr agent prompt sous-chef` fails because no such agent exists, the orchestrator is gone: say
-so here and carry on.
+Never ping for progress or per phase; herdr already shows this station's state. A ticket written
+before the `Sous-chef:` field existed has no such line; fall back to the literal `sous-chef` there,
+and nowhere else - **never guess another name.** If the prompt fails because no such agent exists,
+the orchestrator is gone: say so here and carry on.
 
 ## When a review arrives
 
